@@ -350,16 +350,29 @@ body {
 .btn-sm { padding:7px 14px; font-size:12px; border-radius:10px; }
 .btn-block { width:100%; padding:14px; font-size:15px; border-radius:17px; display:flex; align-items:center; justify-content:center; gap:8px; }
 
-/* Key grid */
-.key-grid {
-  display:grid; grid-template-columns:repeat(5,1fr); gap:6px;
-  max-height:340px; overflow-y:auto; padding-right:2px;
+/* Key list — tap to select */
+#key-grid { display:block; max-height:420px; overflow-y:auto; padding-right:4px; }
+.key-row {
+  display:flex; align-items:center; gap:10px;
+  padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.07);
 }
-.key-item { display:flex; flex-direction:column; align-items:center; gap:3px; }
-.key-item .q-num { font-size:10px; color:var(--text-muted); font-weight:500; }
-.key-item select {
-  width:100%; padding:5px 2px; border-radius:8px;
-  font-size:13px; text-align:center; cursor:pointer;
+.key-row:last-child { border-bottom:none; }
+.key-num { width:26px; font-size:13px; font-weight:700; color:var(--text-muted); text-align:right; flex-shrink:0; }
+.key-choices { display:flex; gap:7px; }
+.key-choice {
+  width:44px; height:44px; border-radius:50%;
+  border:2px solid rgba(255,255,255,0.22);
+  background:rgba(255,255,255,0.07); color:var(--text);
+  font-family:'Sarabun',sans-serif; font-size:17px; font-weight:700;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:all .15s; flex-shrink:0; padding:0;
+}
+.key-choice:hover { background:rgba(255,255,255,0.14); border-color:rgba(255,255,255,0.38); transform:scale(1.06); }
+.key-choice.selected {
+  background:linear-gradient(145deg,#e8c060,#c9a84c);
+  border-color:var(--gold); color:#0c1a3a;
+  box-shadow:0 0 18px rgba(201,168,76,0.55),inset 0 1px 0 rgba(255,255,255,0.30);
+  transform:scale(1.08);
 }
 
 /* Upload */
@@ -373,8 +386,9 @@ body {
 .upload-icon { font-size:36px; margin-bottom:8px; }
 .upload-zone p { font-size:13px; color:var(--text-muted); }
 .upload-zone strong { color:var(--text); }
-#preview-wrap { display:none; margin-bottom:14px; }
-#preview-wrap img { width:100%; border-radius:13px; border:1px solid rgba(255,255,255,0.14); max-height:280px; object-fit:contain; }
+#preview-wrap { display:none; margin-bottom:14px; position:relative; }
+#preview-wrap img { width:100%; border-radius:13px; border:1px solid rgba(255,255,255,0.14); max-height:360px; object-fit:contain; display:block; }
+.marker-overlay { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; border-radius:13px; }
 #preview-name { font-size:11px; color:var(--text-muted); margin-top:6px; text-align:center; }
 
 /* Spinner */
@@ -713,29 +727,41 @@ function switchTab(name) {
   if (name === 'print') initPrintTab();
 }
 
-// ============ ANSWER KEY ============
+// ============ ANSWER KEY — tap-to-select ============
 function buildKeyGrid() {
   const n = Math.min(parseInt(document.getElementById('f-numq').value)||20, 60);
   const grid = document.getElementById('key-grid');
   const prev = getAnswerKey();
   grid.innerHTML = '';
   for (let i = 1; i <= n; i++) {
-    const item = document.createElement('div');
-    item.className = 'key-item';
-    item.innerHTML = '<span class="q-num">'+i+'</span>'
-      + '<select id="key-'+i+'"><option value="">-</option>'
-      + CHOICES.map(c=>'<option value="'+c+'">'+c+'</option>').join('') + '</select>';
-    grid.appendChild(item);
+    const row = document.createElement('div');
+    row.className = 'key-row';
+    const btns = CHOICES.map(c =>
+      `<button class="key-choice${prev[i]===c?' selected':''}" data-q="${i}" data-c="${c}" onclick="toggleKey(this)" type="button">${c}</button>`
+    ).join('');
+    row.innerHTML = `<span class="key-num">${i}</span><div class="key-choices">${btns}</div>`;
+    grid.appendChild(row);
   }
-  for (let i=1;i<=n;i++){ const s=document.getElementById('key-'+i); if(s&&prev[i]) s.value=prev[i]; }
 }
-function clearKey() { document.querySelectorAll('#key-grid select').forEach(s=>s.value=''); }
+function toggleKey(btn) {
+  const was = btn.classList.contains('selected');
+  btn.closest('.key-choices').querySelectorAll('.key-choice').forEach(b => b.classList.remove('selected'));
+  if (!was) btn.classList.add('selected');
+}
+function clearKey() { document.querySelectorAll('#key-grid .key-choice').forEach(b=>b.classList.remove('selected')); }
 function getAnswerKey() {
-  const key={};
-  document.querySelectorAll('#key-grid select').forEach((s,i)=>{ if(s.value) key[i+1]=s.value; });
+  const key = {};
+  document.querySelectorAll('#key-grid .key-choice.selected').forEach(btn => {
+    key[parseInt(btn.dataset.q)] = btn.dataset.c;
+  });
   return key;
 }
-function setAnswerKey(key) { for(const q in key){ const s=document.getElementById('key-'+q); if(s) s.value=key[q]; } }
+function setAnswerKey(key) {
+  for (const q in key) {
+    const btn = document.querySelector(`#key-grid .key-choice[data-q="${q}"][data-c="${key[q]}"]`);
+    if (btn) { btn.closest('.key-choices').querySelectorAll('.key-choice').forEach(b=>b.classList.remove('selected')); btn.classList.add('selected'); }
+  }
+}
 
 // ============ SUBJECTS ============
 async function loadSubjects() {
@@ -819,49 +845,102 @@ function subjectMsg(msg,isErr) {
   box.style.display='block';
 }
 
-// ============ OMR LAYOUT (print + read share this) ============
+// ============ OMR LAYOUT — shared by print & read ============
 function omrLayout(numQ) {
   const n=Math.min(Math.max(numQ,1),60);
-  const cols=n<=20?1:2, rowsPerCol=Math.ceil(n/cols);
-  const areaTop=275,areaBottom=1040,areaLeft=80,areaRight=745;
-  const colW=(areaRight-areaLeft)/cols, rowH=(areaBottom-areaTop)/rowsPerCol;
-  const R=Math.max(7,Math.min(13,rowH*0.30));
+  const cols=n<=16?1:n<=38?2:3;
+  const rowsPerCol=Math.ceil(n/cols);
+  const areaTop=282, areaBottom=1058, areaLeft=82, areaRight=718;
+  const colW=(areaRight-areaLeft)/cols;
+  const rowH=(areaBottom-areaTop)/rowsPerCol;
+  const R=Math.max(6,Math.min(12,rowH*0.285));
   const bubbles=[],cells=[];
   for(let i=0;i<n;i++){
-    const c=Math.floor(i/rowsPerCol),r=i%rowsPerCol;
-    const x0=areaLeft+c*colW, y=areaTop+r*rowH+rowH/2;
-    const numX=x0+18, optStart=x0+48, step=(colW-66)/4, opts=[];
-    for(let k=0;k<4;k++){const cx=optStart+step*(k+0.5); opts.push({label:CHOICES[k],x:cx,y}); bubbles.push({q:i+1,choice:k,x:cx,y});}
+    const c=Math.floor(i/rowsPerCol), r=i%rowsPerCol;
+    const x0=areaLeft+c*colW;
+    const y=areaTop+r*rowH+rowH/2;
+    const numX=x0+20, optStart=x0+52;
+    const step=(colW-72)/4;
+    const opts=[];
+    for(let k=0;k<4;k++){
+      const cx=optStart+step*(k+0.5);
+      opts.push({label:CHOICES[k],x:cx,y});
+      bubbles.push({q:i+1,choice:k,x:cx,y});
+    }
     cells.push({q:i+1,numX,numY:y,opts});
   }
-  return {n,cols,R,bubbles,cells,srcQuad:[[MK.tl.x,MK.tl.y],[MK.tr.x,MK.tr.y],[MK.br.x,MK.br.y],[MK.bl.x,MK.bl.y]]};
+  return{n,cols,R,bubbles,cells,srcQuad:[[MK.tl.x,MK.tl.y],[MK.tr.x,MK.tr.y],[MK.br.x,MK.br.y],[MK.bl.x,MK.bl.y]]};
 }
 
-// ============ PRINT SHEET (SVG) ============
+// ============ PRINT SHEET (SVG) — compact centered ============
 function buildSheetSVG() {
   const school=document.getElementById('p-school').value||'';
-  const exam=document.getElementById('p-exam').value||'';
-  const subj=document.getElementById('p-subject').value||'';
-  const cls=document.getElementById('p-class').value||'';
-  const n=Math.min(parseInt(document.getElementById('p-numq').value)||20,60);
+  const exam  =document.getElementById('p-exam').value||'';
+  const subj  =document.getElementById('p-subject').value||'';
+  const cls   =document.getElementById('p-class').value||'';
+  const n     =Math.min(parseInt(document.getElementById('p-numq').value)||20,60);
   const L=omrLayout(n); const hf=MK.size/2;
-  let svg='<svg viewBox="0 0 '+SHEET_W+' '+SHEET_H+'" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;background:#fff;font-family:Sarabun,sans-serif">';
-  [MK.tl,MK.tr,MK.br,MK.bl].forEach(m=>{ svg+='<rect x="'+(m.x-hf)+'" y="'+(m.y-hf)+'" width="'+MK.size+'" height="'+MK.size+'" fill="#000"/>'; });
-  svg+='<text x="'+(SHEET_W/2)+'" y="118" text-anchor="middle" font-size="30" font-weight="700" fill="#000">'+esc(school)+'</text>';
-  if(exam) svg+='<text x="'+(SHEET_W/2)+'" y="152" text-anchor="middle" font-size="21" fill="#000">'+esc(exam)+'</text>';
-  let sub=subj?'วิชา '+subj:''; if(cls) sub+=(sub?'   ':'')+' ชั้น '+cls;
-  if(sub) svg+='<text x="'+(SHEET_W/2)+'" y="182" text-anchor="middle" font-size="18" fill="#000">'+esc(sub)+'</text>';
-  svg+='<text x="80" y="222" font-size="18" fill="#000">ชื่อ-สกุล ______________________________   เลขที่ _______   ห้อง _______</text>';
-  svg+='<line x1="55" y1="238" x2="745" y2="238" stroke="#000" stroke-width="1"/>';
-  svg+='<text x="80" y="262" font-size="13" fill="#555">ระบายวงให้เต็มและเข้ม เลือกข้อละ 1 ตัวเลือก • ถ่ายรูปให้เห็นจุดดำครบทั้ง 4 มุม</text>';
+  const CX=SHEET_W/2; // กึ่งกลางหน้า
+
+  let svg=`<svg viewBox="0 0 ${SHEET_W} ${SHEET_H}" xmlns="http://www.w3.org/2000/svg"
+    style="width:100%;height:auto;display:block;background:#fff;font-family:Sarabun,sans-serif">`;
+
+  // === จุดดำ 4 มุม (registration markers) ===
+  [MK.tl,MK.tr,MK.br,MK.bl].forEach(m=>{
+    svg+=`<rect x="${m.x-hf}" y="${m.y-hf}" width="${MK.size}" height="${MK.size}" fill="#000"/>`;
+  });
+
+  // === กล่อง Header (80,78)→(720,228) ===
+  svg+=`<rect x="82" y="78" width="636" height="150" rx="3" fill="none" stroke="#000" stroke-width="1.5"/>`;
+
+  // ตัวอย่างระบายผิด/ถูก (มุมขวาบนของกล่อง)
+  const wx=686,wy=84;
+  svg+=`<text x="${wx}" y="${wy+10}" font-size="8" fill="#555">ผิด</text>`;
+  svg+=`<text x="${wx+32}" y="${wy+10}" font-size="8" fill="#555">ถูก</text>`;
+  // ผิด: ระบายนอกวง, เช็ค, ครึ่งวง
+  [[0,'✗'],[14,'✓'],[28,'']].forEach(([dx,sym])=>{
+    svg+=`<circle cx="${wx+4+dx}" cy="${wy+20}" r="6" fill="none" stroke="#999" stroke-width="1"/>`;
+    if(sym) svg+=`<text x="${wx+4+dx}" y="${wy+24}" text-anchor="middle" font-size="8" fill="#888">${sym}</text>`;
+    else svg+=`<circle cx="${wx+4+dx}" cy="${wy+20}" r="3.5" fill="#bbb"/>`;
+  });
+  // ถูก: ระบายเต็ม
+  svg+=`<circle cx="${wx+38}" cy="${wy+20}" r="6" fill="none" stroke="#000" stroke-width="1"/>`;
+  svg+=`<circle cx="${wx+38}" cy="${wy+20}" r="4.5" fill="#000"/>`;
+
+  // ชื่อโรงเรียน
+  const hasExam=!!exam, hasSub=!!(subj||cls);
+  const lineSpacing=hasSub&&hasExam?28:32;
+  let ty = hasExam&&hasSub ? 110 : hasExam||hasSub ? 114 : 120;
+  svg+=`<text x="${CX}" y="${ty}" text-anchor="middle" font-size="${school.length>20?22:26}" font-weight="700" fill="#000">${esc(school)}</text>`;
+  if(exam){ ty+=lineSpacing; svg+=`<text x="${CX}" y="${ty}" text-anchor="middle" font-size="17" fill="#000">${esc(exam)}</text>`; }
+  let sub=subj?`วิชา ${subj}`:''; if(cls) sub+=(sub?'   ':'')+`ชั้น ${cls}`;
+  if(sub){ ty+=lineSpacing; svg+=`<text x="${CX}" y="${ty}" text-anchor="middle" font-size="15" fill="#222">${esc(sub)}</text>`; }
+
+  // === ชื่อ-สกุล | ชั้น | เลขที่ ===
+  const FY=232;
+  svg+=`<text x="85" y="${FY+16}" font-size="14" fill="#000">ชื่อ-สกุล</text>`;
+  svg+=`<line x1="147" y1="${FY+18}" x2="430" y2="${FY+18}" stroke="#000" stroke-width="0.9"/>`;
+  svg+=`<text x="436" y="${FY+16}" font-size="14" fill="#000">ชั้น</text>`;
+  svg+=`<line x1="464" y1="${FY+18}" x2="565" y2="${FY+18}" stroke="#000" stroke-width="0.9"/>`;
+  svg+=`<text x="571" y="${FY+16}" font-size="14" fill="#000">เลขที่</text>`;
+  svg+=`<line x1="610" y1="${FY+18}" x2="718" y2="${FY+18}" stroke="#000" stroke-width="0.9"/>`;
+
+  // === คำชี้แจง ===
+  svg+=`<line x1="82" y1="${FY+26}" x2="718" y2="${FY+26}" stroke="#000" stroke-width="0.7"/>`;
+  svg+=`<text x="${CX}" y="${FY+40}" text-anchor="middle" font-size="11" fill="#555">ระบายวงให้เต็มและเข้ม เลือกข้อละ 1 ตัวเลือก  •  ถ่ายรูปให้เห็นจุดดำครบทั้ง 4 มุม</text>`;
+
+  // === วงคำตอบ — compact centered ===
+  const fSize=Math.max(9,Math.min(14,L.R*1.15));
+  const lSize=Math.max(8,Math.min(11,L.R*0.88));
   L.cells.forEach(cell=>{
-    svg+='<text x="'+cell.numX+'" y="'+(cell.numY+5)+'" text-anchor="end" font-size="15" font-weight="600" fill="#000">'+cell.q+'.</text>';
+    svg+=`<text x="${cell.numX}" y="${cell.numY+4}" text-anchor="end" font-size="${fSize}" font-weight="700" fill="#000">${cell.q}.</text>`;
     cell.opts.forEach(o=>{
-      svg+='<text x="'+(o.x-L.R-7)+'" y="'+(o.y+4)+'" text-anchor="end" font-size="12" fill="#333">'+o.label+'</text>';
-      svg+='<circle cx="'+o.x+'" cy="'+o.y+'" r="'+L.R+'" fill="#fff" stroke="#000" stroke-width="1.4"/>';
+      svg+=`<text x="${o.x-L.R-5}" y="${o.y+4}" text-anchor="end" font-size="${lSize}" fill="#444">${o.label}</text>`;
+      svg+=`<circle cx="${o.x}" cy="${o.y}" r="${L.R}" fill="#fff" stroke="#000" stroke-width="1.2"/>`;
     });
   });
-  svg+='</svg>';
+
+  svg+=`</svg>`;
   return svg;
 }
 function initPrintTab() {
@@ -999,7 +1078,7 @@ function runOMR(img,numQ){
   return{ok:true,answers,uncertain};
 }
 
-// ============ FILE ============
+// ============ FILE + MARKER OVERLAY ============
 function handleFile(file){
   if(!file)return;
   const reader=new FileReader();
@@ -1010,13 +1089,23 @@ function handleFile(file){
       if(Math.max(w,h)>maxDim){const r=maxDim/Math.max(w,h);w=Math.round(w*r);h=Math.round(h*r);}
       const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
       canvas.getContext('2d').drawImage(img,0,0,w,h);
-      const jpeg=canvas.toDataURL('image/jpeg',0.85);
+      const jpeg=canvas.toDataURL('image/jpeg',0.88);
       G.imageType='image/jpeg';G.imageBase64=jpeg.split(',')[1];
-      document.getElementById('preview-img').src=jpeg;
+      const prevImg=document.getElementById('preview-img');
+      prevImg.src=jpeg;
       document.getElementById('preview-name').textContent=file.name;
       document.getElementById('preview-wrap').style.display='block';
       document.getElementById('grade-btn').disabled=false;
       showError('');
+      // ตรวจหา marker และแสดง overlay หลัง img render
+      prevImg.onload=()=>setTimeout(()=>{
+        try{
+          const{gray,w:gw,h:gh}=omrToGray(img);
+          const thr=otsu(gray);
+          const markers=detectMarkers(gray,gw,gh,thr);
+          showMarkerOverlay(prevImg,markers,gw,gh);
+        }catch(ex){}
+      },80);
     };
     img.onerror=()=>{
       G.imageType=file.type||'image/jpeg';G.imageBase64=e.target.result.split(',')[1];
@@ -1027,6 +1116,53 @@ function handleFile(file){
     img.src=e.target.result;
   };
   reader.readAsDataURL(file);
+}
+
+// ===== Marker overlay (เหมือนรูปที่ 2 — L-shape บอกตำแหน่ง marker) =====
+function showMarkerOverlay(imgEl,markers,gw,gh){
+  const wrap=document.getElementById('preview-wrap');
+  wrap.querySelectorAll('.marker-overlay').forEach(c=>c.remove());
+  const cvs=document.createElement('canvas');
+  cvs.className='marker-overlay';
+  const dw=imgEl.offsetWidth||imgEl.naturalWidth;
+  const dh=imgEl.offsetHeight||imgEl.naturalHeight;
+  cvs.width=dw; cvs.height=dh;
+  wrap.appendChild(cvs);
+  const ctx=cvs.getContext('2d');
+  const sx=dw/gw, sy=dh/gh;
+  if(markers){
+    markers.forEach(([mx,my])=>{
+      const px=mx*sx, py=my*sy, sz=Math.max(20,dw*0.048);
+      const lw=Math.max(2.5,sz*0.13), arm=sz*0.48;
+      ctx.strokeStyle='#3fa9f5'; ctx.lineWidth=lw; ctx.lineCap='round';
+      [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([dx,dy])=>{
+        ctx.beginPath();
+        ctx.moveTo(px+dx*sz, py+dy*(sz-arm));
+        ctx.lineTo(px+dx*sz, py+dy*sz);
+        ctx.lineTo(px+dx*(sz-arm), py+dy*sz);
+        ctx.stroke();
+      });
+      // วงในจุด marker
+      ctx.strokeStyle='rgba(63,169,245,0.45)'; ctx.lineWidth=lw*0.6;
+      ctx.beginPath(); ctx.arc(px,py,sz*0.32,0,7); ctx.stroke();
+    });
+    _badge(ctx,'✅ พบจุดอ้างอิงครบ 4 มุม — พร้อมตรวจ','rgba(0,170,75,0.85)',dw);
+  } else {
+    _badge(ctx,'⚠️ หาจุดไม่ครบ — ถ่ายให้เห็น 4 มุมบนพื้นขาว','rgba(200,40,30,0.85)',dw);
+  }
+}
+function _badge(ctx,txt,bg,dw){
+  const pad=10,bh=34,bw=Math.min(dw-20,340),fs=Math.max(11,Math.min(13,dw*0.033));
+  ctx.fillStyle=bg; _rrect(ctx,pad,pad,bw,bh,9); ctx.fill();
+  ctx.fillStyle='#fff'; ctx.font=`600 ${fs}px Sarabun,sans-serif`;
+  ctx.fillText(txt,pad+12,pad+bh*0.70);
+}
+function _rrect(ctx,x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r); ctx.closePath();
 }
 (function initDrop(){
   const dz=document.getElementById('drop-zone');
