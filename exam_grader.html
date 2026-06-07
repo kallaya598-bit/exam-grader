@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ระบบตรวจข้อสอบ — นายางกลักพิทยาคม</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ===== iOS 26 LIQUID GLASS DESIGN SYSTEM ===== */
+:root {
+  /* glass บนพื้นสว่าง = โทนขาวฝ้า โปร่งแสง */
+  --glass:        rgba(255,255,255,0.55);
+  --glass-heavy:  rgba(255,255,255,0.72);
+  --glass-border: rgba(255,255,255,0.80);
+  --glass-shine:  rgba(255,255,255,0.95);
+  --glass-blur:   blur(28px) saturate(170%) brightness(1.03);
+  --glass-blur-sm:blur(14px) saturate(150%);
+  --shadow-glass: 0 14px 44px rgba(16,90,55,0.14), 0 2px 10px rgba(16,90,55,0.08), inset 0 1px 0 rgba(255,255,255,0.90);
+  --shadow-sm:    0 5px 20px rgba(16,90,55,0.10), inset 0 1px 0 rgba(255,255,255,0.75);
+  /* คงชื่อ --gold/--navy ไว้ แต่ค่าเปลี่ยนเป็นเขียว/พื้นสว่าง (ทุก var(--gold) กลายเป็นเขียวอัตโนมัติ) */
+  --gold:         #16a34a;
+  --gold-light:   #0f9a45;
+  --gold-glow:    rgba(34,197,94,0.40);
+  --navy:         #e9f5ee;
+  --radius:       20px;
+  --radius-sm:    13px;
+  --text:         rgba(14,42,28,0.95);
+  --text-muted:   rgba(22,58,40,0.62);
+  --text-dim:     rgba(22,58,40,0.40);
+  --correct:      #15a34a;
+  --correct-bg:   rgba(34,197,94,0.18);
+  --wrong:        #e0392b;
+  --wrong-bg:     rgba(224,57,43,0.14);
+  --warn:         #d97706;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif;
+  min-height: 100dvh; overflow-x: hidden; color: var(--text);
+  background: var(--navy);
+}
+
+/* ===== ANIMATED MESH BACKGROUND (ขาวใส–เขียว) ===== */
+.bg {
+  position: fixed; inset: 0; z-index: 0;
+  background: linear-gradient(145deg, #f3fbf6 0%, #dcf1e4 35%, #e6f7ee 65%, #f1faf4 100%);
+}
+.bg::before {
+  content: ''; position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 65% 50% at 12% 18%, rgba(34,197,94,0.28) 0%, transparent 60%),
+    radial-gradient(ellipse 55% 65% at 88% 82%, rgba(110,220,170,0.40) 0%, transparent 60%),
+    radial-gradient(ellipse 45% 35% at 55% 45%, rgba(160,235,200,0.30) 0%, transparent 55%);
+  animation: bg1 14s ease-in-out infinite alternate;
+}
+.bg::after {
+  content: ''; position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 40% 40% at 78% 18%, rgba(34,197,94,0.20) 0%, transparent 60%),
+    radial-gradient(ellipse 35% 45% at 22% 78%, rgba(90,210,160,0.22) 0%, transparent 60%),
+    radial-gradient(ellipse 30% 30% at 50% 90%, rgba(52,217,119,0.16) 0%, transparent 55%);
+  animation: bg2 18s ease-in-out infinite alternate;
+}
+@keyframes bg1 { to { transform: scale(1.12) translate(2.5%,1.5%); } }
+@keyframes bg2 { to { transform: scale(1.07) translate(-1.5%,2.5%); } }
+
+/* ===== GLASS MIXINS ===== */
+.glass {
+  background: var(--glass);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-glass);
+}
+.glass-sm {
+  background: var(--glass);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid rgba(255,255,255,0.22);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ===== LOGIN SCREEN ===== */
+#login-screen {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; padding-top: env(safe-area-inset-top, 24px);
+}
+.login-card {
+  width: 100%; max-width: 390px;
+  border-radius: 30px; padding: 44px 34px 38px;
+  text-align: center; position: relative; overflow: hidden;
+  background: rgba(255,255,255,0.55);
+  border: 1px solid rgba(255,255,255,0.80);
+  box-shadow:
+    0 32px 80px rgba(16,90,55,0.18),
+    0 8px 24px rgba(16,90,55,0.10),
+    inset 0 1px 0 rgba(255,255,255,0.9),
+    inset 0 -1px 0 rgba(255,255,255,0.3);
+  backdrop-filter: blur(40px) saturate(180%) brightness(1.05);
+  -webkit-backdrop-filter: blur(40px) saturate(180%) brightness(1.05);
+}
+/* top specular highlight */
+.login-card::before {
+  content: ''; position: absolute; top: 0; left: 15px; right: 15px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.70), transparent);
+}
+/* inner light sheen */
+.login-card::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(155deg,
+    rgba(255,255,255,0.18) 0%,
+    rgba(255,255,255,0.06) 40%,
+    transparent 70%,
+    rgba(34,197,94,0.04) 100%);
+  pointer-events: none; border-radius: inherit;
+}
+
+/* Logo emblem (CSS — ไม่ต้องใช้ไฟล์ภาพ) */
+.logo-wrap {
+  position: relative; display: inline-block; margin-bottom: 22px;
+}
+.logo-glow {
+  position: absolute; inset: -24px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(34,197,94,0.35) 0%, transparent 70%);
+  animation: glowPulse 3s ease-in-out infinite;
+}
+.logo-ring {
+  position: absolute; inset: -10px; border-radius: 50%;
+  border: 1px solid rgba(34,197,94,0.40);
+  animation: ringPulse 3s ease-in-out infinite;
+}
+.logo-ring2 {
+  position: absolute; inset: -20px; border-radius: 50%;
+  border: 1px solid rgba(34,197,94,0.15);
+  animation: ringPulse 3s ease-in-out infinite 0.5s;
+}
+.logo-emblem {
+  width: 116px; height: 116px; border-radius: 50%; position: relative; z-index: 1;
+  background: linear-gradient(145deg, #4ade80 0%, #22c55e 40%, #0c7a38 100%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  box-shadow:
+    0 0 0 3px rgba(34,197,94,0.25),
+    0 0 32px rgba(34,197,94,0.45),
+    0 10px 30px rgba(12,122,56,0.35),
+    inset 0 1px 0 rgba(255,255,255,0.45),
+    inset 0 -2px 4px rgba(12,90,50,0.20);
+  animation: logoPulse 3s ease-in-out infinite;
+}
+.logo-emblem .em-th { font-size: 38px; font-weight: 800; color: #ffffff; line-height: 1; }
+.logo-emblem .em-sub { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.85); letter-spacing: 0.5px; }
+@keyframes logoPulse {
+  0%,100%{ filter: drop-shadow(0 0 16px rgba(34,197,94,0.55)) drop-shadow(0 4px 20px rgba(12,122,56,0.35)); }
+  50%    { filter: drop-shadow(0 0 28px rgba(34,197,94,0.80)) drop-shadow(0 4px 28px rgba(12,122,56,0.30)); }
+}
+@keyframes glowPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.12)} }
+@keyframes ringPulse { 0%,100%{transform:scale(1);opacity:0.8} 50%{transform:scale(1.08);opacity:0.4} }
+
+.login-school { font-size: 20px; font-weight: 700; margin-bottom: 3px; letter-spacing: 0.2px; }
+.login-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; }
+.login-divider { height: 1px; background: rgba(22,90,55,0.14); margin-bottom: 22px; position: relative; }
+.login-divider::after { content:'เข้าสู่ระบบ'; position:absolute; top:-9px; left:50%; transform:translateX(-50%); background:transparent; padding:0 10px; font-size:11px; color:var(--text-dim); letter-spacing:1px; }
+
+/* Glass inputs */
+.g-input {
+  width: 100%; padding: 14px 18px;
+  background: rgba(255,255,255,0.65);
+  border: 1px solid rgba(22,90,55,0.18);
+  border-radius: 14px; color: var(--text);
+  font-family: 'Sarabun',sans-serif; font-size: 15px;
+  outline: none; margin-bottom: 11px;
+  transition: border-color .2s, background .2s, box-shadow .2s;
+}
+.g-input::placeholder { color: var(--text-dim); }
+.g-input:focus {
+  background: rgba(255,255,255,0.92);
+  border-color: rgba(34,197,94,0.65);
+  box-shadow: 0 0 0 3px rgba(34,197,94,0.13);
+}
+.btn-login {
+  width: 100%; padding: 15px; margin-top: 5px;
+  background: linear-gradient(140deg, #22c55e 0%, #0c7a38 100%);
+  border: none; border-radius: 16px;
+  color: #ffffff; font-family:'Sarabun',sans-serif; font-size:16px; font-weight:700;
+  cursor:pointer; position:relative; overflow:hidden;
+  box-shadow: 0 4px 24px rgba(34,197,94,0.38), inset 0 1px 0 rgba(255,255,255,0.32);
+  transition: transform .18s, box-shadow .18s;
+}
+.btn-login::before {
+  content:''; position:absolute; inset:0;
+  background: linear-gradient(160deg, rgba(255,255,255,0.20) 0%, transparent 60%);
+}
+.btn-login:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 7px 28px rgba(34,197,94,0.55); }
+.btn-login:active:not(:disabled){ transform:translateY(0); }
+.btn-login:disabled { opacity:.55; cursor:not-allowed; }
+.login-error { font-size:13px; color:#d32f2f; margin-top:13px; min-height:18px; line-height:1.5; }
+
+/* ===== APP SCREEN ===== */
+#app-screen {
+  position: relative; z-index: 1;
+  min-height: 100dvh; display: none; flex-direction: column;
+}
+
+/* Header */
+.app-header {
+  position: sticky; top: 0; z-index: 50;
+  padding-top: env(safe-area-inset-top, 0);
+  border-bottom: 1px solid rgba(255,255,255,0.55);
+  background: rgba(255,255,255,0.62);
+  backdrop-filter: blur(32px) saturate(180%) brightness(1.04);
+  -webkit-backdrop-filter: blur(32px) saturate(180%) brightness(1.04);
+  box-shadow: 0 4px 24px rgba(16,90,55,0.10), inset 0 -1px 0 rgba(255,255,255,0.5);
+}
+.app-header::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.50) 50%,transparent 100%);
+  pointer-events:none;
+}
+.header-inner {
+  display: flex; align-items: center; gap: 11px; padding: 12px 18px;
+}
+.h-logo-badge {
+  width:36px; height:36px; border-radius:10px; flex-shrink:0;
+  background: linear-gradient(145deg, #4ade80 0%, #22c55e 50%, #0c7a38 100%);
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; font-weight:800; color:#ffffff; letter-spacing:-0.5px;
+  box-shadow: 0 2px 12px rgba(34,197,94,0.45), inset 0 1px 0 rgba(255,255,255,0.35);
+}
+.h-title { font-size:16px; font-weight:700; flex:1; letter-spacing:0.2px; }
+.h-user { font-size:12px; color:var(--text-muted); white-space:nowrap; }
+.btn-logout {
+  padding:6px 14px; border-radius:20px;
+  background:rgba(255,255,255,0.6); border:1px solid rgba(22,90,55,0.16);
+  color:var(--text-muted); font-family:'Sarabun',sans-serif; font-size:12px;
+  cursor:pointer; transition:all .2s; white-space:nowrap;
+}
+.btn-logout:hover { background:rgba(255,69,58,0.18); color:#d32f2f; border-color:rgba(255,69,58,0.3); }
+
+/* Tab bar */
+.tab-bar {
+  display:flex; gap:2px; padding:0 14px;
+  overflow-x:auto; -ms-overflow-style:none; scrollbar-width:none;
+  border-top:none; border-radius:0; background:rgba(255,255,255,0.30);
+  border-bottom:1px solid rgba(22,90,55,0.10);
+  box-shadow:none; backdrop-filter:none; border-left:none; border-right:none;
+}
+.tab-bar::-webkit-scrollbar { display:none; }
+.tab-btn {
+  flex-shrink:0; padding:13px 17px;
+  background:none; border:none; border-bottom:2.5px solid transparent;
+  color:var(--text-muted); font-family:'Sarabun',sans-serif; font-size:13.5px; font-weight:500;
+  cursor:pointer; transition:all .2s; white-space:nowrap;
+}
+.tab-btn.active {
+  color:var(--gold-light);
+  border-bottom-color:var(--gold);
+  text-shadow:0 0 20px rgba(34,197,94,0.55);
+}
+
+/* Content */
+.app-content {
+  flex:1; padding:20px 15px 40px;
+  max-width:1000px; margin:0 auto; width:100%;
+  padding-bottom: calc(40px + env(safe-area-inset-bottom,0));
+}
+.panel { display:none; }
+.panel.active { display:block; }
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+@media(max-width:760px){ .two-col{grid-template-columns:1fr;} }
+.row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+
+/* Glass card */
+.g-card {
+  border-radius:var(--radius); padding:22px;
+  margin-bottom:18px; position:relative; overflow:hidden;
+  background: rgba(255,255,255,0.55);
+  border: 1px solid rgba(255,255,255,0.75);
+  box-shadow:
+    0 12px 40px rgba(16,90,55,0.13),
+    0 2px 8px rgba(16,90,55,0.07),
+    inset 0 1px 0 rgba(255,255,255,0.9),
+    inset 0 -1px 0 rgba(255,255,255,0.3);
+  backdrop-filter: blur(28px) saturate(170%) brightness(1.03);
+  -webkit-backdrop-filter: blur(28px) saturate(170%) brightness(1.03);
+}
+.g-card::before {
+  content:''; position:absolute; top:0; left:16px; right:16px; height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.55),transparent);
+  pointer-events:none;
+}
+/* subtle inner highlight sheen */
+.g-card::after {
+  content:''; position:absolute; top:0; left:0; right:0; height:45%;
+  background: linear-gradient(175deg, rgba(255,255,255,0.10) 0%, transparent 100%);
+  pointer-events:none; border-radius:inherit;
+}
+.g-card-title {
+  font-size:11px; font-weight:700; letter-spacing:1px;
+  text-transform:uppercase; color:var(--gold-light); opacity:0.85;
+  margin-bottom:18px; display:flex; align-items:center; gap:8px;
+}
+.g-card-title::before {
+  content:''; width:3px; height:13px; border-radius:2px;
+  background:linear-gradient(to bottom,var(--gold),rgba(34,197,94,0.2));
+}
+
+/* Form */
+.field { margin-bottom:12px; }
+.field label { display:block; font-size:11px; color:var(--text-muted); margin-bottom:5px; font-weight:500; letter-spacing:0.4px; }
+.field input, .field select {
+  width:100%; padding:10px 14px;
+  background:rgba(255,255,255,0.65); border:1px solid rgba(22,90,55,0.18);
+  border-radius:var(--radius-sm); color:var(--text);
+  font-family:'Sarabun',sans-serif; font-size:14px;
+  outline:none; transition:all .2s;
+}
+.field input::placeholder { color:var(--text-dim); }
+.field input:focus, .field select:focus {
+  background:rgba(255,255,255,0.92); border-color:rgba(34,197,94,0.55);
+  box-shadow:0 0 0 3px rgba(34,197,94,0.13);
+}
+.field select option { background:#ffffff; color:#14321f; }
+
+/* Buttons */
+.btn {
+  padding:10px 18px; border-radius:13px; border:none;
+  font-family:'Sarabun',sans-serif; font-size:14px; font-weight:600;
+  cursor:pointer; transition:all .2s; position:relative; overflow:hidden;
+}
+.btn::before {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(160deg,rgba(255,255,255,0.15) 0%,transparent 60%);
+  pointer-events:none;
+}
+.btn-primary {
+  background:linear-gradient(140deg,#22c55e 0%,#0c7a38 100%);
+  color:#ffffff;
+  box-shadow:0 4px 18px rgba(34,197,94,0.32),inset 0 1px 0 rgba(255,255,255,0.28);
+}
+.btn-primary:hover:not(:disabled){ transform:translateY(-1px); box-shadow:0 6px 22px rgba(34,197,94,0.50); }
+.btn-primary:active:not(:disabled){ transform:translateY(0); }
+.btn-ghost {
+  background:rgba(255,255,255,0.6); border:1px solid rgba(22,90,55,0.18); color:var(--text-muted);
+}
+.btn-ghost:hover:not(:disabled){ background:rgba(255,255,255,0.85); color:var(--text); }
+.btn-danger { background:rgba(255,69,58,0.12); border:1px solid rgba(255,69,58,0.25); color:#d32f2f; }
+.btn-danger:hover:not(:disabled){ background:rgba(255,69,58,0.22); }
+.btn:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
+.btn-row { display:flex; gap:10px; flex-wrap:wrap; }
+.btn-sm { padding:7px 14px; font-size:12px; border-radius:10px; }
+.btn-block { width:100%; padding:14px; font-size:15px; border-radius:17px; display:flex; align-items:center; justify-content:center; gap:8px; }
+
+/* Key list — tap to select */
+#key-grid { display:block; max-height:420px; overflow-y:auto; padding-right:4px; }
+.key-row {
+  display:flex; align-items:center; gap:10px;
+  padding:7px 0; border-bottom:1px solid rgba(22,90,55,0.10);
+}
+.key-row:last-child { border-bottom:none; }
+.key-num { width:26px; font-size:13px; font-weight:700; color:var(--text-muted); text-align:right; flex-shrink:0; }
+.key-choices { display:flex; gap:7px; }
+.key-choice {
+  width:44px; height:44px; border-radius:50%;
+  border:2px solid rgba(22,90,55,0.20);
+  background:rgba(255,255,255,0.55); color:var(--text);
+  font-family:'Sarabun',sans-serif; font-size:17px; font-weight:700;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:all .15s; flex-shrink:0; padding:0;
+}
+.key-choice:hover { background:rgba(34,197,94,0.12); border-color:rgba(34,197,94,0.45); transform:scale(1.06); }
+.key-choice.selected {
+  background:linear-gradient(145deg,#4ade80,#22c55e);
+  border-color:var(--gold); color:#ffffff;
+  box-shadow:0 0 18px rgba(34,197,94,0.55),inset 0 1px 0 rgba(255,255,255,0.30);
+  transform:scale(1.08);
+}
+
+/* Upload */
+.upload-zone {
+  border:2px dashed rgba(22,90,55,0.25); border-radius:var(--radius);
+  padding:32px 16px; text-align:center; cursor:pointer; position:relative;
+  background:rgba(255,255,255,0.40); transition:all .2s; margin-bottom:14px;
+}
+.upload-zone:hover,.upload-zone.drag { border-color:rgba(34,197,94,0.60); background:rgba(34,197,94,0.05); }
+.upload-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+.upload-icon { font-size:36px; margin-bottom:8px; }
+.upload-zone p { font-size:13px; color:var(--text-muted); }
+.upload-zone strong { color:var(--text); }
+#preview-wrap { display:none; margin-bottom:14px; position:relative; }
+#preview-wrap img { width:100%; border-radius:13px; border:1px solid rgba(22,90,55,0.15); max-height:360px; object-fit:contain; display:block; }
+.marker-overlay { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; border-radius:13px; }
+#preview-name { font-size:11px; color:var(--text-muted); margin-top:6px; text-align:center; }
+
+/* Spinner */
+.spinner {
+  width:18px; height:18px; border:2.5px solid rgba(0,0,0,0.2); border-top-color:#ffffff;
+  border-radius:50%; animation:spin .7s linear infinite; display:inline-block; vertical-align:middle;
+}
+@keyframes spin{ to{transform:rotate(360deg);} }
+
+/* Result */
+#result-section { display:none; }
+.score-banner {
+  border-radius:var(--radius); padding:28px 24px; text-align:center; margin-bottom:18px;
+  background:linear-gradient(140deg,rgba(34,197,94,0.22) 0%,rgba(34,197,94,0.05) 100%);
+  border:1px solid rgba(34,197,94,0.28); position:relative; overflow:hidden;
+}
+.score-banner::before {
+  content:''; position:absolute; top:0; left:20px; right:20px; height:1px;
+  background:linear-gradient(90deg,transparent,rgba(34,197,94,0.55),transparent);
+}
+.score-num { font-size:64px; font-weight:800; line-height:1; color:var(--gold-light); text-shadow:0 0 48px rgba(34,197,94,0.55); }
+.score-sub { font-size:14px; color:var(--text-muted); margin-top:5px; }
+.score-pct { font-size:22px; font-weight:700; color:var(--gold-light); margin-top:9px; }
+.stat-row { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:18px; }
+.stat-box {
+  border-radius:17px; padding:16px 10px; text-align:center;
+  backdrop-filter:var(--glass-blur-sm); -webkit-backdrop-filter:var(--glass-blur-sm);
+  position:relative; overflow:hidden;
+}
+.stat-box::before { content:''; position:absolute; top:0; left:10px; right:10px; height:1px; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent); }
+.stat-val { font-size:28px; font-weight:800; }
+.stat-label { font-size:11px; color:var(--text-muted); margin-top:2px; }
+.stat-box.correct { background:var(--correct-bg); border:1px solid rgba(48,209,88,0.24); }
+.stat-box.correct .stat-val { color:var(--correct); }
+.stat-box.wrong   { background:var(--wrong-bg);   border:1px solid rgba(255,69,58,0.24); }
+.stat-box.wrong   .stat-val { color:var(--wrong); }
+.stat-box.total   { background:rgba(255,255,255,0.55); border:1px solid rgba(22,90,55,0.14); }
+.stat-box.total .stat-val { color:var(--text); }
+
+/* Table */
+.g-table-wrap { border-radius:var(--radius); overflow:hidden; }
+.g-table-header {
+  padding:14px 18px; font-size:11px; font-weight:700; letter-spacing:0.8px;
+  text-transform:uppercase; color:var(--gold-light); opacity:.85;
+  border-bottom:1px solid rgba(22,90,55,0.10); display:flex; align-items:center; gap:8px;
+}
+.g-table-header::before { content:''; width:3px; height:13px; background:linear-gradient(to bottom,var(--gold),transparent); border-radius:2px; }
+.q-table { width:100%; border-collapse:collapse; font-size:13.5px; }
+.q-table th { padding:9px 14px; text-align:center; color:var(--text-muted); font-size:11px; font-weight:600; border-bottom:1px solid rgba(22,90,55,0.12); }
+.q-table td { padding:8px 14px; text-align:center; border-bottom:1px solid rgba(22,90,55,0.08); }
+.q-table tr:last-child td { border-bottom:none; }
+.q-table tr.row-correct td { background:rgba(48,209,88,0.08); }
+.q-table tr.row-wrong   td { background:rgba(255,69,58,0.08); }
+.badge { display:inline-block; padding:3px 12px; border-radius:20px; font-size:11px; font-weight:600; }
+.badge.ok   { background:var(--correct-bg); color:var(--correct); }
+.badge.no   { background:var(--wrong-bg);   color:var(--wrong); }
+.badge.skip { background:rgba(255,159,10,0.16); color:var(--warn); }
+.ans-sel {
+  padding:5px 8px; border:1px solid rgba(22,90,55,0.18); border-radius:8px;
+  background:rgba(255,255,255,0.65); color:var(--text);
+  font-family:'Sarabun',sans-serif; font-size:14px; cursor:pointer; min-width:72px;
+}
+.ans-sel option { background:#ffffff; color:#14321f; }
+.ans-sel:focus { outline:none; border-color:rgba(34,197,94,0.5); }
+
+/* Info/error boxes */
+.note-box { background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.30); border-radius:14px; padding:13px 16px; font-size:13px; color:rgba(11,110,52,0.95); margin-top:16px; line-height:1.65; }
+.info-box  { background:rgba(60,140,240,0.10); border:1px solid rgba(60,140,240,0.24); border-radius:14px; padding:12px 16px; font-size:13px; color:rgba(34,84,170,0.95); margin-bottom:14px; line-height:1.6; }
+.error-box { background:rgba(224,57,43,0.10); border:1px solid rgba(224,57,43,0.28); border-radius:14px; padding:13px 16px; font-size:13px; color:#c62828; margin-top:12px; display:none; line-height:1.6; }
+.ok-box    { background:rgba(34,197,94,0.12);  border:1px solid rgba(34,197,94,0.30);  border-radius:14px; padding:13px 16px; font-size:13px; color:#0b8a3f; margin-top:12px; display:none; }
+
+/* ===== PRINT ===== */
+#print-area { display:none; }
+@media print {
+  body > *       { display:none!important; }
+  #print-area    { display:block!important; position:fixed; inset:0; background:#fff; }
+  @page          { margin:12mm; }
+}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+
+<!-- ======================================== LOGIN ======================================== -->
+<div id="login-screen">
+  <div class="login-card glass">
+    <div class="logo-wrap">
+      <div class="logo-glow"></div>
+      <div class="logo-ring2"></div>
+      <div class="logo-ring"></div>
+      <div class="logo-emblem">
+        <span class="em-th">นย</span>
+        <span class="em-sub">NAYANGKLAK</span>
+      </div>
+    </div>
+    <div class="login-school">โรงเรียนนายางกลักพิทยาคม</div>
+    <div class="login-sub">ระบบตรวจข้อสอบอัตโนมัติ OMR</div>
+    <div class="login-divider"></div>
+    <input class="g-input" id="l-user" type="text"     placeholder="ชื่อผู้ใช้ (username)" autocomplete="username">
+    <input class="g-input" id="l-pass" type="password" placeholder="รหัสผ่าน" autocomplete="current-password">
+    <button class="btn-login" id="login-btn" onclick="doLogin()">เข้าสู่ระบบ</button>
+    <div class="login-error" id="login-err"></div>
+  </div>
+</div>
+
+<!-- ======================================== APP ======================================== -->
+<div id="app-screen">
+
+  <!-- HEADER -->
+  <div class="app-header">
+    <div class="header-inner">
+      <div class="h-logo-badge">นย</div>
+      <div class="h-title">ระบบตรวจข้อสอบ</div>
+      <div class="h-user" id="hdr-user"></div>
+      <button class="btn-logout" onclick="doLogout()">ออกจากระบบ</button>
+    </div>
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="subject" onclick="switchTab('subject')">📚 รายวิชา &amp; เฉลย</button>
+      <button class="tab-btn"        data-tab="print"   onclick="switchTab('print')">🖨️ พิมพ์กระดาษ</button>
+      <button class="tab-btn"        data-tab="grade"   onclick="switchTab('grade')">✅ ตรวจข้อสอบ</button>
+    </div>
+  </div>
+
+  <div class="app-content">
+
+    <!-- ===== TAB 1: SUBJECT & KEY ===== -->
+    <div class="panel active" id="panel-subject">
+      <div class="two-col">
+        <div>
+          <div class="g-card glass">
+            <div class="g-card-title">รายวิชาที่บันทึกไว้</div>
+            <div class="field">
+              <select id="subject-select" onchange="onSelectSubject()">
+                <option value="">— เลือกรายวิชา —</option>
+              </select>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-ghost btn-sm" onclick="newSubject()">+ สร้างใหม่</button>
+              <button class="btn btn-ghost btn-sm" onclick="loadSubjects()">⟳ โหลดใหม่</button>
+            </div>
+            <div class="error-box" id="subject-msg"></div>
+          </div>
+
+          <div class="g-card glass">
+            <div class="g-card-title">ข้อมูลรายวิชา</div>
+            <div class="field"><label>ชื่อรายวิชา *</label><input id="f-subject" placeholder="เช่น ฟิสิกส์ ม.5"></div>
+            <div class="row3">
+              <div class="field"><label>ชั้น</label><input id="f-class" placeholder="ม.5"></div>
+              <div class="field"><label>ห้อง</label><input id="f-room"  placeholder="5/1"></div>
+              <div class="field"><label>จำนวนข้อ</label><input type="number" id="f-numq" min="1" max="60" value="20" onchange="buildKeyGrid()"></div>
+            </div>
+            <div class="field"><label>ชื่อข้อสอบ (หัวกระดาษ)</label><input id="f-exam" placeholder="สอบกลางภาค 1/2569"></div>
+            <div class="field"><label>ชื่อโรงเรียน</label><input id="f-school" value="โรงเรียนนายางกลักพิทยาคม"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="g-card glass">
+            <div class="g-card-title">กรอกเฉลย (ก ข ค ง)</div>
+            <div class="btn-row" style="margin-bottom:14px">
+              <button class="btn btn-ghost btn-sm" onclick="buildKeyGrid()">ตั้งจำนวนข้อ</button>
+              <button class="btn btn-ghost btn-sm" onclick="clearKey()">ล้างเฉลย</button>
+            </div>
+            <div class="key-grid" id="key-grid"></div>
+          </div>
+          <div class="g-card glass">
+            <div class="g-card-title">บันทึก</div>
+            <div class="btn-row">
+              <button class="btn btn-primary" onclick="saveSubject()">💾 บันทึกรายวิชา + เฉลย</button>
+              <button class="btn btn-danger btn-sm" id="del-btn" onclick="deleteSubject()" style="display:none">ลบรายวิชา</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TAB 2: PRINT ===== -->
+    <div class="panel" id="panel-print">
+      <div class="g-card glass">
+        <div class="g-card-title">ปรับแต่งหัวกระดาษ</div>
+        <div class="info-box" id="print-need" style="display:none">⚠️ ยังไม่ได้เลือกรายวิชา — ไปแท็บแรกเพื่อเลือกหรือสร้างก่อน</div>
+        <div class="row2">
+          <div class="field"><label>ชื่อโรงเรียน</label><input id="p-school" oninput="renderSheet()"></div>
+          <div class="field"><label>ชื่อข้อสอบ</label>  <input id="p-exam"   oninput="renderSheet()"></div>
+        </div>
+        <div class="row3">
+          <div class="field"><label>รายวิชา</label><input id="p-subject" oninput="renderSheet()"></div>
+          <div class="field"><label>ชั้น/ห้อง</label><input id="p-class"   oninput="renderSheet()"></div>
+          <div class="field"><label>จำนวนข้อ</label><input type="number" id="p-numq" min="1" max="60" oninput="renderSheet()"></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="window.print()">🖨️ พิมพ์ / บันทึก PDF</button>
+          <span style="font-size:12px;color:var(--text-muted);align-self:center">เลือก "บันทึกเป็น PDF" ในหน้าพิมพ์</span>
+        </div>
+      </div>
+      <div class="g-card glass" style="padding:0;overflow:hidden">
+        <div class="g-table-header">ตัวอย่างกระดาษคำตอบ OMR</div>
+        <div style="padding:20px;background:rgba(255,255,255,0.02)"><div id="sheet-preview"></div></div>
+      </div>
+    </div>
+
+    <!-- ===== TAB 3: GRADE ===== -->
+    <div class="panel" id="panel-grade">
+      <div class="g-card glass">
+        <div class="g-card-title">ข้อมูลการตรวจ</div>
+        <div class="info-box" id="grade-need" style="display:none">⚠️ ยังไม่ได้เลือกรายวิชา</div>
+        <div class="field"><label>รายวิชาที่จะตรวจ</label>
+          <select id="grade-subject" onchange="onGradeSubject()">
+            <option value="">— เลือกรายวิชา —</option>
+          </select>
+        </div>
+        <div class="row3">
+          <div class="field"><label>ชื่อนักเรียน</label><input id="g-name" placeholder="ด.ช./ด.ญ. ..."></div>
+          <div class="field"><label>เลขที่</label>       <input id="g-no"   placeholder="เลขที่"></div>
+          <div class="field"><label>ห้อง</label>         <input id="g-room" placeholder="5/1"></div>
+        </div>
+      </div>
+
+      <div class="g-card glass">
+        <div class="g-card-title">อัปโหลดกระดาษคำตอบ</div>
+        <div class="info-box">📸 ถ่ายให้เห็น <b>จุดดำครบทั้ง 4 มุม</b> · วางบนพื้นสว่าง · ไม่เอียงมาก · ระบายให้เข้ม</div>
+        <div class="upload-zone" id="drop-zone">
+          <input type="file" id="file-input" accept="image/*" onchange="handleFile(this.files[0])">
+          <div class="upload-icon">📷</div>
+          <p><strong>คลิกเพื่อถ่าย / เลือกรูป</strong> หรือลากวางที่นี่</p>
+          <p>รองรับ JPG, PNG, HEIC (แปลงให้อัตโนมัติ)</p>
+        </div>
+        <div id="preview-wrap">
+          <img id="preview-img" src="" alt="preview">
+          <p id="preview-name"></p>
+        </div>
+        <button class="btn btn-primary btn-block" id="grade-btn" onclick="gradeExam()" disabled>
+          <span id="btn-text">ตรวจข้อสอบ</span>
+        </button>
+        <div class="error-box" id="error-box"></div>
+      </div>
+
+      <!-- RESULT -->
+      <div id="result-section">
+        <div class="score-banner">
+          <div class="score-num" id="res-score">—</div>
+          <div class="score-sub" id="res-total">คะแนน</div>
+          <div class="score-pct" id="res-pct"></div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-box correct"><div class="stat-val" id="res-correct">—</div><div class="stat-label">ข้อถูก</div></div>
+          <div class="stat-box wrong">  <div class="stat-val" id="res-wrong">—</div>  <div class="stat-label">ข้อผิด</div></div>
+          <div class="stat-box total">  <div class="stat-val" id="res-blank">—</div>  <div class="stat-label">ไม่ตอบ</div></div>
+        </div>
+        <div class="btn-row" style="margin-bottom:14px">
+          <button class="btn btn-primary btn-sm" id="save-result-btn" onclick="saveResult()">💾 บันทึกคะแนนลงระบบ</button>
+        </div>
+        <div class="g-card glass" style="padding:0;overflow:hidden">
+          <div class="g-table-header">รายละเอียดรายข้อ</div>
+          <div style="overflow-x:auto">
+            <table class="q-table">
+              <thead><tr><th>ข้อ</th><th>คำตอบนักเรียน</th><th>เฉลย</th><th>ผล</th></tr></thead>
+              <tbody id="result-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="note-box" id="ai-note" style="display:none"></div>
+      </div>
+    </div>
+  </div><!-- /app-content -->
+</div><!-- /app-screen -->
+
+<!-- Print area -->
+<div id="print-area"><div id="sheet-print"></div></div>
+
+<script>
+// ============ CONFIG ============
+const SB  = 'https://ujajukwmxulayxxxxmpr.supabase.co';
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYWp1a3dteHVsYXl4eHh4bXByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxNDc4MDAsImV4cCI6MjA5NTcyMzgwMH0.DbiP5Qelewl0ozjTNn8GpAkjq256bCGusO4irblMVOo';
+const H   = { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' };
+const CHOICES = ['ก','ข','ค','ง'];
+const SHEET_W = 800, SHEET_H = 1130;
+const MK = { size:50, tl:{x:55,y:55}, tr:{x:745,y:55}, br:{x:745,y:1075}, bl:{x:55,y:1075} };
+
+const G = {
+  user: null, subjects: [], current: null, gradeSubject: null,
+  lastResult: null, imageBase64: null, imageType: 'image/jpeg',
+  curKey: {}, curNumQ: 20
+};
+
+// ============ LOGIN ============
+async function doLogin() {
+  const username = document.getElementById('l-user').value.trim();
+  const password = document.getElementById('l-pass').value;
+  const errEl = document.getElementById('login-err');
+  const btn = document.getElementById('login-btn');
+  if (!username || !password) { errEl.textContent = 'กรุณากรอก username และ password'; return; }
+  btn.disabled = true; btn.textContent = 'กำลังตรวจสอบ...'; errEl.textContent = '';
+  try {
+    const res = await fetch(SB + '/rest/v1/rpc/login', {
+      method: 'POST', headers: H,
+      body: JSON.stringify({ p_username: username, p_password: password })
+    });
+    const data = await res.json();
+    const user = Array.isArray(data) ? data[0] : data;
+    if (!user || !user.id || res.status >= 400)
+      throw new Error('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+    G.user = user;
+    sessionStorage.setItem('exam_user', JSON.stringify(user));
+    showApp();
+  } catch(e) {
+    errEl.textContent = '⚠️ ' + (e.message || 'เข้าสู่ระบบไม่สำเร็จ');
+  } finally {
+    btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
+  }
+}
+
+function doLogout() {
+  sessionStorage.removeItem('exam_user'); G.user = null;
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('l-pass').value = '';
+  document.getElementById('login-err').textContent = '';
+}
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display  = 'flex';
+  document.getElementById('hdr-user').textContent = G.user?.fullname || G.user?.username || '';
+  buildKeyGrid(); loadSubjects();
+}
+
+['l-user','l-pass'].forEach(id =>
+  document.getElementById(id).addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); })
+);
+
+// ============ TABS ============
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  if (name === 'print') initPrintTab();
+}
+
+// ============ ANSWER KEY — tap-to-select ============
+function buildKeyGrid() {
+  const n = Math.min(parseInt(document.getElementById('f-numq').value)||20, 60);
+  const grid = document.getElementById('key-grid');
+  const prev = getAnswerKey();
+  grid.innerHTML = '';
+  for (let i = 1; i <= n; i++) {
+    const row = document.createElement('div');
+    row.className = 'key-row';
+    const btns = CHOICES.map(c =>
+      `<button class="key-choice${prev[i]===c?' selected':''}" data-q="${i}" data-c="${c}" onclick="toggleKey(this)" type="button">${c}</button>`
+    ).join('');
+    row.innerHTML = `<span class="key-num">${i}</span><div class="key-choices">${btns}</div>`;
+    grid.appendChild(row);
+  }
+}
+function toggleKey(btn) {
+  const was = btn.classList.contains('selected');
+  btn.closest('.key-choices').querySelectorAll('.key-choice').forEach(b => b.classList.remove('selected'));
+  if (!was) btn.classList.add('selected');
+}
+function clearKey() { document.querySelectorAll('#key-grid .key-choice').forEach(b=>b.classList.remove('selected')); }
+function getAnswerKey() {
+  const key = {};
+  document.querySelectorAll('#key-grid .key-choice.selected').forEach(btn => {
+    key[parseInt(btn.dataset.q)] = btn.dataset.c;
+  });
+  return key;
+}
+function setAnswerKey(key) {
+  for (const q in key) {
+    const btn = document.querySelector(`#key-grid .key-choice[data-q="${q}"][data-c="${key[q]}"]`);
+    if (btn) { btn.closest('.key-choices').querySelectorAll('.key-choice').forEach(b=>b.classList.remove('selected')); btn.classList.add('selected'); }
+  }
+}
+
+// ============ SUBJECTS ============
+async function loadSubjects() {
+  try {
+    const res = await fetch(SB+'/rest/v1/exam_subjects?select=*&order=updated_at.desc',{headers:H});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    G.subjects = await res.json(); fillSubjectDropdowns();
+  } catch(e) { subjectMsg('โหลดไม่สำเร็จ: '+e.message+' (รัน exam_schema.sql แล้วหรือยัง?)',true); }
+}
+function fillSubjectDropdowns() {
+  const opts = '<option value="">— เลือกรายวิชา —</option>'
+    + G.subjects.map(s=>'<option value="'+s.id+'">'+esc(s.subject_name)+(s.room?' ('+esc(s.room)+')':'')+'</option>').join('');
+  document.getElementById('subject-select').innerHTML = opts;
+  document.getElementById('grade-subject').innerHTML  = opts;
+  if(G.current)      document.getElementById('subject-select').value = G.current.id||'';
+  if(G.gradeSubject) document.getElementById('grade-subject').value  = G.gradeSubject.id||'';
+}
+function onSelectSubject() {
+  const id=document.getElementById('subject-select').value;
+  if(!id){ newSubject(); return; }
+  const s=G.subjects.find(x=>String(x.id)===String(id)); if(!s) return;
+  G.current=s;
+  document.getElementById('f-subject').value = s.subject_name||'';
+  document.getElementById('f-class').value   = s.class_level||'';
+  document.getElementById('f-room').value    = s.room||'';
+  document.getElementById('f-numq').value    = s.num_questions||20;
+  document.getElementById('f-exam').value    = s.exam_title||'';
+  document.getElementById('f-school').value  = s.school_name||'โรงเรียนนายางกลักพิทยาคม';
+  buildKeyGrid(); setAnswerKey(s.answer_key||{});
+  document.getElementById('del-btn').style.display=''; subjectMsg('',false);
+}
+function newSubject() {
+  G.current=null;
+  ['f-subject','f-class','f-room','f-exam'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-numq').value=20;
+  document.getElementById('f-school').value='โรงเรียนนายางกลักพิทยาคม';
+  document.getElementById('subject-select').value='';
+  buildKeyGrid(); clearKey();
+  document.getElementById('del-btn').style.display='none'; subjectMsg('',false);
+}
+async function saveSubject() {
+  const name=document.getElementById('f-subject').value.trim();
+  if(!name){ subjectMsg('กรุณากรอกชื่อรายวิชา',true); return; }
+  const payload={
+    subject_name:name,
+    class_level:document.getElementById('f-class').value.trim()||null,
+    room:document.getElementById('f-room').value.trim()||null,
+    exam_title:document.getElementById('f-exam').value.trim()||null,
+    school_name:document.getElementById('f-school').value.trim()||null,
+    num_questions:parseInt(document.getElementById('f-numq').value)||20,
+    choices:4, answer_key:getAnswerKey()
+  };
+  try {
+    let res;
+    if(G.current?.id)
+      res=await fetch(SB+'/rest/v1/exam_subjects?id=eq.'+G.current.id,{method:'PATCH',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(payload)});
+    else
+      res=await fetch(SB+'/rest/v1/exam_subjects',{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(payload)});
+    if(!res.ok) throw new Error('HTTP '+res.status+' '+(await res.text()));
+    const saved=(await res.json())[0]; G.current=saved;
+    await loadSubjects(); document.getElementById('subject-select').value=saved.id;
+    document.getElementById('del-btn').style.display=''; subjectMsg('✅ บันทึกเรียบร้อย',false);
+  } catch(e){ subjectMsg('บันทึกไม่สำเร็จ: '+e.message,true); }
+}
+async function deleteSubject() {
+  if(!G.current?.id) return;
+  if(!confirm('ลบรายวิชา "'+G.current.subject_name+'" ?')) return;
+  try {
+    const res=await fetch(SB+'/rest/v1/exam_subjects?id=eq.'+G.current.id,{method:'DELETE',headers:H});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    newSubject(); await loadSubjects(); subjectMsg('ลบแล้ว',false);
+  } catch(e){ subjectMsg('ลบไม่สำเร็จ: '+e.message,true); }
+}
+function subjectMsg(msg,isErr) {
+  const box=document.getElementById('subject-msg');
+  if(!msg){ box.style.display='none'; return; }
+  box.textContent=(isErr?'⚠️ ':'')+msg;
+  box.style.background=isErr?'rgba(255,69,58,0.11)':'rgba(48,209,88,0.11)';
+  box.style.borderColor=isErr?'rgba(255,69,58,0.24)':'rgba(48,209,88,0.24)';
+  box.style.color=isErr?'#c62828':'#0b8a3f';
+  box.style.display='block';
+}
+
+// ============ OMR LAYOUT — shared by print & read ============
+function omrLayout(numQ) {
+  const n=Math.min(Math.max(numQ,1),60);
+  const cols=n<=16?1:n<=38?2:3;
+  const rowsPerCol=Math.ceil(n/cols);
+  const areaTop=282, areaBottom=1058, areaLeft=82, areaRight=718;
+  const colW=(areaRight-areaLeft)/cols;
+  const rowH=(areaBottom-areaTop)/rowsPerCol;
+  const R=Math.max(6,Math.min(12,rowH*0.285));
+  const bubbles=[],cells=[];
+  for(let i=0;i<n;i++){
+    const c=Math.floor(i/rowsPerCol), r=i%rowsPerCol;
+    const x0=areaLeft+c*colW;
+    const y=areaTop+r*rowH+rowH/2;
+    const numX=x0+20, optStart=x0+52;
+    const step=(colW-72)/4;
+    const opts=[];
+    for(let k=0;k<4;k++){
+      const cx=optStart+step*(k+0.5);
+      opts.push({label:CHOICES[k],x:cx,y});
+      bubbles.push({q:i+1,choice:k,x:cx,y});
+    }
+    cells.push({q:i+1,numX,numY:y,opts});
+  }
+  return{n,cols,R,bubbles,cells,srcQuad:[[MK.tl.x,MK.tl.y],[MK.tr.x,MK.tr.y],[MK.br.x,MK.br.y],[MK.bl.x,MK.bl.y]]};
+}
+
+// ============ PRINT SHEET (SVG) — compact centered ============
+function buildSheetSVG() {
+  const school=document.getElementById('p-school').value||'';
+  const exam  =document.getElementById('p-exam').value||'';
+  const subj  =document.getElementById('p-subject').value||'';
+  const cls   =document.getElementById('p-class').value||'';
+  const n     =Math.min(parseInt(document.getElementById('p-numq').value)||20,60);
+  const L=omrLayout(n); const hf=MK.size/2;
+  const CX=SHEET_W/2; // กึ่งกลางหน้า
+
+  let svg=`<svg viewBox="0 0 ${SHEET_W} ${SHEET_H}" xmlns="http://www.w3.org/2000/svg"
+    style="width:100%;height:auto;display:block;background:#fff;font-family:Sarabun,sans-serif">`;
+
+  // === จุดดำ 4 มุม (registration markers) ===
+  [MK.tl,MK.tr,MK.br,MK.bl].forEach(m=>{
+    svg+=`<rect x="${m.x-hf}" y="${m.y-hf}" width="${MK.size}" height="${MK.size}" fill="#000"/>`;
+  });
+
+  // === กล่อง Header (80,78)→(720,228) ===
+  svg+=`<rect x="82" y="78" width="636" height="150" rx="3" fill="none" stroke="#000" stroke-width="1.5"/>`;
+
+  // ตัวอย่างระบายผิด/ถูก (มุมขวาบนของกล่อง)
+  const wx=686,wy=84;
+  svg+=`<text x="${wx}" y="${wy+10}" font-size="8" fill="#555">ผิด</text>`;
+  svg+=`<text x="${wx+32}" y="${wy+10}" font-size="8" fill="#555">ถูก</text>`;
+  // ผิด: ระบายนอกวง, เช็ค, ครึ่งวง
+  [[0,'✗'],[14,'✓'],[28,'']].forEach(([dx,sym])=>{
+    svg+=`<circle cx="${wx+4+dx}" cy="${wy+20}" r="6" fill="none" stroke="#999" stroke-width="1"/>`;
+    if(sym) svg+=`<text x="${wx+4+dx}" y="${wy+24}" text-anchor="middle" font-size="8" fill="#888">${sym}</text>`;
+    else svg+=`<circle cx="${wx+4+dx}" cy="${wy+20}" r="3.5" fill="#bbb"/>`;
+  });
+  // ถูก: ระบายเต็ม
+  svg+=`<circle cx="${wx+38}" cy="${wy+20}" r="6" fill="none" stroke="#000" stroke-width="1"/>`;
+  svg+=`<circle cx="${wx+38}" cy="${wy+20}" r="4.5" fill="#000"/>`;
+
+  // ชื่อโรงเรียน
+  const hasExam=!!exam, hasSub=!!(subj||cls);
+  const lineSpacing=hasSub&&hasExam?28:32;
+  let ty = hasExam&&hasSub ? 110 : hasExam||hasSub ? 114 : 120;
+  svg+=`<text x="${CX}" y="${ty}" text-anchor="middle" font-size="${school.length>20?22:26}" font-weight="700" fill="#000">${esc(school)}</text>`;
+  if(exam){ ty+=lineSpacing; svg+=`<text x="${CX}" y="${ty}" text-anchor="middle" font-size="17" fill="#000">${esc(exam)}</text>`; }
+  let sub=subj?`วิชา ${subj}`:''; if(cls) sub+=(sub?'   ':'')+`ชั้น ${cls}`;
+  if(sub){ ty+=lineSpacing; svg+=`<text x="${CX}" y="${ty}" text-anchor="middle" font-size="15" fill="#222">${esc(sub)}</text>`; }
+
+  // === ชื่อ-สกุล | ชั้น | เลขที่ ===
+  const FY=232;
+  svg+=`<text x="85" y="${FY+16}" font-size="14" fill="#000">ชื่อ-สกุล</text>`;
+  svg+=`<line x1="147" y1="${FY+18}" x2="430" y2="${FY+18}" stroke="#000" stroke-width="0.9"/>`;
+  svg+=`<text x="436" y="${FY+16}" font-size="14" fill="#000">ชั้น</text>`;
+  svg+=`<line x1="464" y1="${FY+18}" x2="565" y2="${FY+18}" stroke="#000" stroke-width="0.9"/>`;
+  svg+=`<text x="571" y="${FY+16}" font-size="14" fill="#000">เลขที่</text>`;
+  svg+=`<line x1="610" y1="${FY+18}" x2="718" y2="${FY+18}" stroke="#000" stroke-width="0.9"/>`;
+
+  // === คำชี้แจง ===
+  svg+=`<line x1="82" y1="${FY+26}" x2="718" y2="${FY+26}" stroke="#000" stroke-width="0.7"/>`;
+  svg+=`<text x="${CX}" y="${FY+40}" text-anchor="middle" font-size="11" fill="#555">ระบายวงให้เต็มและเข้ม เลือกข้อละ 1 ตัวเลือก  •  ถ่ายรูปให้เห็นจุดดำครบทั้ง 4 มุม</text>`;
+
+  // === วงคำตอบ — compact centered ===
+  const fSize=Math.max(9,Math.min(14,L.R*1.15));
+  const lSize=Math.max(8,Math.min(11,L.R*0.88));
+  L.cells.forEach(cell=>{
+    svg+=`<text x="${cell.numX}" y="${cell.numY+4}" text-anchor="end" font-size="${fSize}" font-weight="700" fill="#000">${cell.q}.</text>`;
+    cell.opts.forEach(o=>{
+      svg+=`<text x="${o.x-L.R-5}" y="${o.y+4}" text-anchor="end" font-size="${lSize}" fill="#444">${o.label}</text>`;
+      svg+=`<circle cx="${o.x}" cy="${o.y}" r="${L.R}" fill="#fff" stroke="#000" stroke-width="1.2"/>`;
+    });
+  });
+
+  svg+=`</svg>`;
+  return svg;
+}
+function initPrintTab() {
+  const s=G.current;
+  document.getElementById('print-need').style.display=s?'none':'block';
+  if(s){
+    document.getElementById('p-school').value =s.school_name||'โรงเรียนนายางกลักพิทยาคม';
+    document.getElementById('p-exam').value   =s.exam_title||'';
+    document.getElementById('p-subject').value=s.subject_name||'';
+    document.getElementById('p-class').value  =(s.class_level||'')+(s.room?'/'+s.room:'');
+    document.getElementById('p-numq').value   =s.num_questions||20;
+  }
+  if(!document.getElementById('p-school').value) document.getElementById('p-school').value='โรงเรียนนายางกลักพิทยาคม';
+  if(!document.getElementById('p-numq').value)   document.getElementById('p-numq').value=20;
+  renderSheet();
+}
+function renderSheet() {
+  const svg=buildSheetSVG();
+  document.getElementById('sheet-preview').innerHTML=svg;
+  document.getElementById('sheet-print').innerHTML=svg;
+}
+
+// ============ OMR ENGINE ============
+function omrToGray(img){
+  const maxDim=1200; let w=img.naturalWidth,h=img.naturalHeight;
+  const sc=Math.min(1,maxDim/Math.max(w,h)); w=Math.round(w*sc); h=Math.round(h*sc);
+  const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+  const ctx=cv.getContext('2d'); ctx.drawImage(img,0,0,w,h);
+  const d=ctx.getImageData(0,0,w,h).data, gray=new Uint8Array(w*h);
+  for(let i=0,j=0;i<d.length;i+=4,j++) gray[j]=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114)|0;
+  return{gray,w,h};
+}
+function otsu(gray){
+  const hist=new Array(256).fill(0);
+  for(let i=0;i<gray.length;i++) hist[gray[i]]++;
+  const total=gray.length; let sum=0;
+  for(let t=0;t<256;t++) sum+=t*hist[t];
+  let sumB=0,wB=0,max=0,thr=127;
+  for(let t=0;t<256;t++){
+    wB+=hist[t]; if(!wB)continue;
+    const wF=total-wB; if(!wF)break;
+    sumB+=t*hist[t];
+    const bw=wB*wF*(sumB/wB-(sum-sumB)/wF)**2;
+    if(bw>max){max=bw;thr=t;}
+  }
+  return thr;
+}
+function detectMarkers(gray,w,h,thr){
+  // ใช้ threshold เข้มกว่า Otsu เพราะ marker ต้องเป็น "สีดำปริ้นเตอร์" เท่านั้น
+  // ตัดดินสอ/พื้นหลังมืด/ปากกาออกด้วย threshold ที่เฉพาะเจาะจง
+  const markerThr = Math.min(thr * 0.65, 68);
+  const dark=new Uint8Array(w*h);
+  for(let i=0;i<gray.length;i++) dark[i]=gray[i]<markerThr?1:0;
+  const label=new Int32Array(w*h),blobs=[],stack=[];
+  let cur=0;
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    const idx=y*w+x;
+    if(dark[idx]&&!label[idx]){
+      cur++; let area=0,sx=0,sy=0,minx=x,maxx=x,miny=y,maxy=y;
+      stack.length=0; stack.push(idx); label[idx]=cur;
+      while(stack.length){
+        const p=stack.pop(),py=(p/w)|0,px=p-py*w;
+        area++;sx+=px;sy+=py;
+        if(px<minx)minx=px;if(px>maxx)maxx=px;if(py<miny)miny=py;if(py>maxy)maxy=py;
+        if(px>0){const q=p-1;if(dark[q]&&!label[q]){label[q]=cur;stack.push(q);}}
+        if(px<w-1){const q=p+1;if(dark[q]&&!label[q]){label[q]=cur;stack.push(q);}}
+        if(py>0){const q=p-w;if(dark[q]&&!label[q]){label[q]=cur;stack.push(q);}}
+        if(py<h-1){const q=p+w;if(dark[q]&&!label[q]){label[q]=cur;stack.push(q);}}
+      }
+      blobs.push({area,cx:sx/area,cy:sy/area,minx,maxx,miny,maxy});
+    }
+  }
+  const imgArea=w*h;
+  // กรองเฉพาะ "สี่เหลี่ยมทึบ" — fill>0.74 ตัดปากกา/เส้น/ตัวหนังสือออก
+  const cand=blobs.filter(b=>{
+    const bw=b.maxx-b.minx+1,bh=b.maxy-b.miny+1,ar=bw/bh,fill=b.area/(bw*bh);
+    return b.area>imgArea*0.0003
+        && b.area<imgArea*0.018
+        && ar>0.62 && ar<1.60   // ใกล้สี่เหลี่ยม (ตัดปากกาออก)
+        && fill>0.74;            // ทึบสูง (ตัดตัวหนังสือ/เส้นออก)
+  });
+  if(cand.length<4) return null;
+  // เลือก candidate ที่ใกล้มุมภาพที่สุด 1 ตัวต่อมุม
+  const corners=[[0,0],[w,0],[w,h],[0,h]],picked=[];
+  for(const c of corners){
+    let best=null,bd=Infinity;
+    for(const b of cand){const d=(b.cx-c[0])**2+(b.cy-c[1])**2;if(d<bd){bd=d;best=b;}}
+    picked.push(best);
+  }
+  if(new Set(picked.map(p=>p.cx+','+p.cy)).size<4) return null;
+  // Sanity check: 4 จุดต้องกระจายตัวกว้างพอ (ไม่กระจุกกัน)
+  const xs=picked.map(p=>p.cx),ys=picked.map(p=>p.cy);
+  if(Math.max(...xs)-Math.min(...xs)<w*0.18 || Math.max(...ys)-Math.min(...ys)<h*0.18) return null;
+  return picked.map(p=>[p.cx,p.cy]);
+}
+function solveHomography(src,dst){
+  const A=[],b=[];
+  for(let i=0;i<4;i++){
+    const x=src[i][0],y=src[i][1],X=dst[i][0],Y=dst[i][1];
+    A.push([x,y,1,0,0,0,-x*X,-y*X]);b.push(X);
+    A.push([0,0,0,x,y,1,-x*Y,-y*Y]);b.push(Y);
+  }
+  const n=8;
+  for(let i=0;i<n;i++){
+    let p=i;for(let r=i+1;r<n;r++)if(Math.abs(A[r][i])>Math.abs(A[p][i]))p=r;
+    [A[i],A[p]]=[A[p],A[i]];[b[i],b[p]]=[b[p],b[i]];
+    if(Math.abs(A[i][i])<1e-9)return null;
+    for(let r=0;r<n;r++){if(r===i)continue;const f=A[r][i]/A[i][i];for(let c=i;c<n;c++)A[r][c]-=f*A[i][c];b[r]-=f*b[i];}
+  }
+  const x=[];for(let i=0;i<n;i++)x[i]=b[i]/A[i][i];
+  return x;
+}
+function applyH(h,x,y){const d=h[6]*x+h[7]*y+1;return[(h[0]*x+h[1]*y+h[2])/d,(h[3]*x+h[4]*y+h[5])/d];}
+function sampleMean(gray,w,h,px,py,rad){
+  let sum=0,tot=0;const r=Math.max(2,rad|0);
+  for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++){
+    if(dx*dx+dy*dy>r*r)continue;
+    const x=(px+dx)|0,y=(py+dy)|0;
+    if(x<0||y<0||x>=w||y>=h)continue;
+    sum+=gray[y*w+x];tot++;
+  }
+  return tot?sum/tot:255;
+}
+function runOMR(img,numQ){
+  const{gray,w,h}=omrToGray(img);
+  const thr=otsu(gray);
+  const markers=detectMarkers(gray,w,h,thr);
+  if(!markers)return{ok:false,reason:'หาจุดดำ 4 มุมไม่เจอ — ถ่ายให้เห็นครบทั้ง 4 มุม บนพื้นสว่าง ไม่เอียงมาก'};
+  const L=omrLayout(numQ);
+  const Hm=solveHomography(L.srcQuad,markers);
+  if(!Hm)return{ok:false,reason:'คำนวณตำแหน่งไม่สำเร็จ ลองถ่ายใหม่ให้ตรงขึ้น'};
+  const dPhoto=Math.hypot(markers[1][0]-markers[0][0],markers[1][1]-markers[0][1]);
+  const dCanon=Math.hypot(L.srcQuad[1][0]-L.srcQuad[0][0],L.srcQuad[1][1]-L.srcQuad[0][1]);
+  const scale=dPhoto/dCanon, sampleR=Math.max(3,L.R*scale*0.65);
+  const answers={};let uncertain=0;
+  // วัดความสว่างกระดาษว่างจากหลายจุดรอบ ๆ เพื่อ calibrate (robust paper white)
+  const paperSamples=[];
+  [MK.tl,MK.tr,MK.br,MK.bl].forEach(m=>{
+    const[px,py]=applyH(Hm,m.x,m.y);
+    // ตัวอย่างนอกจุดมุม (ห่างออกมาเล็กน้อยเพื่อหลีกเลี่ยงตัว marker ดำ)
+    const off=MK.size*scale*1.2;
+    const dx=px<w/2?off:-off, dy=py<h/2?off:-off;
+    paperSamples.push(sampleMean(gray,w,h,px+dx,py+dy,sampleR*1.5));
+  });
+  const paperWhite=Math.max(...paperSamples);  // ค่าขาวสุดของกระดาษ
+
+  for(let q=1;q<=numQ;q++){
+    const m=[];
+    for(let k=0;k<4;k++){
+      const b=L.bubbles[(q-1)*4+k];
+      const[px,py]=applyH(Hm,b.x,b.y);
+      m.push(sampleMean(gray,w,h,px,py,sampleR));
+    }
+    // เทียบสัมพัทธ์: ใช้ paperWhite เป็นฐาน แทนที่จะเอา max ของ 4 วง
+    const ref=Math.min(paperWhite, Math.max(...m)+5);
+    let mi=0;for(let k=1;k<4;k++)if(m[k]<m[mi])mi=k;
+    const asc=[...m].sort((a,b)=>a-b);
+    const c0=ref-asc[0];   // ความต่างของวงเข้มสุด กับกระดาษ
+    const c1=ref-asc[1];   // วงเข้มรองลงมา
+    if(c0<10)answers[q]='-';                              // ไม่ตอบ (< 10 gray levels)
+    else if(c1>0.55*c0&&c1>14){answers[q]='?';uncertain++;}  // ระบาย 2 วง
+    else answers[q]=CHOICES[mi];
+  }
+  return{ok:true,answers,uncertain};
+}
+
+// ============ FILE + MARKER OVERLAY ============
+// ----- EXIF orientation normalize (สำคัญ: รูปจากกล้องมือถือฝังการหมุนไว้ใน EXIF
+//        ไม่หมุนพิกเซลจริง ถ้าไม่ normalize → OMR อ่านเพี้ยนตอนถ่ายตรง) -----
+// รูปทดสอบ 2×1 px orientation=6 → ถ้าเบราว์เซอร์หมุนตาม EXIF จะ decode เป็น 1×2
+const ORIENT_TEST_IMG='data:image/jpeg;base64,/9j/4QAiRXhpZgAATU0AKgAAAAgAAQESAAMAAAABAAYAAAAAAAD/2wCEAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAIDAREAAhEBAxEB/8QAVAABAQAAAAAAAAAAAAAAAAAAAAr/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AKpgAH//2Q==';
+let _autoOrient=null;
+function detectCanvasAutoOrient(cb){
+  if(_autoOrient!==null)return cb(_autoOrient);
+  const t=new Image();
+  t.onload=()=>{_autoOrient=(t.naturalWidth===1&&t.naturalHeight===2);cb(_autoOrient);};
+  t.onerror=()=>{_autoOrient=false;cb(false);};
+  t.src=ORIENT_TEST_IMG;
+}
+function getExifOrientation(buf){
+  try{
+    const v=new DataView(buf);
+    if(v.getUint16(0,false)!==0xFFD8)return 1;           // ไม่ใช่ JPEG
+    const len=v.byteLength;let off=2;
+    while(off<len){
+      const marker=v.getUint16(off,false);off+=2;
+      if(marker===0xFFE1){                                // APP1 (Exif)
+        if(v.getUint32(off+2,false)!==0x45786966)return 1;// "Exif"
+        const little=v.getUint16(off+8,false)===0x4949;
+        const tiff=off+8;
+        const ifd=tiff+v.getUint32(off+12,little);
+        const tags=v.getUint16(ifd,little);
+        for(let i=0;i<tags;i++){
+          const entry=ifd+2+i*12;
+          if(v.getUint16(entry,little)===0x0112)return v.getUint16(entry+8,little)||1;
+        }
+        return 1;
+      } else if((marker&0xFF00)!==0xFF00){break;}
+      else{off+=v.getUint16(off,false);}
+    }
+  }catch(_){}
+  return 1;
+}
+function drawOriented(img,o,maxDim){
+  let w=img.naturalWidth,h=img.naturalHeight;
+  const sc=Math.min(1,maxDim/Math.max(w,h));
+  const sw=Math.round(w*sc),sh=Math.round(h*sc);
+  const swap=o>=5&&o<=8;
+  const cv=document.createElement('canvas');
+  cv.width=swap?sh:sw;cv.height=swap?sw:sh;
+  const ctx=cv.getContext('2d');
+  switch(o){
+    case 2:ctx.transform(-1,0,0,1,sw,0);break;
+    case 3:ctx.transform(-1,0,0,-1,sw,sh);break;
+    case 4:ctx.transform(1,0,0,-1,0,sh);break;
+    case 5:ctx.transform(0,1,1,0,0,0);break;
+    case 6:ctx.transform(0,1,-1,0,sh,0);break;
+    case 7:ctx.transform(0,-1,-1,0,sh,sw);break;
+    case 8:ctx.transform(0,-1,1,0,0,sw);break;
+    default:break;
+  }
+  ctx.drawImage(img,0,0,sw,sh);
+  return cv;
+}
+// คืน canvas ที่ orientation ถูกต้อง + ย่อขนาดแล้ว (Promise)
+function getOrientedCanvas(file,maxDim){
+  return new Promise((resolve,reject)=>{
+    // วิธีหลัก: createImageBitmap honor EXIF ได้แน่นอนทุกอุปกรณ์
+    if(window.createImageBitmap){
+      createImageBitmap(file,{imageOrientation:'from-image'}).then(bmp=>{
+        let w=bmp.width,h=bmp.height;
+        const sc=Math.min(1,maxDim/Math.max(w,h));
+        w=Math.round(w*sc);h=Math.round(h*sc);
+        const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+        cv.getContext('2d').drawImage(bmp,0,0,w,h);
+        if(bmp.close)bmp.close();
+        resolve(cv);
+      }).catch(fallback);
+    } else fallback();
+    function fallback(){                                  // เบราว์เซอร์เก่า: อ่าน EXIF เอง
+      const reader=new FileReader();
+      reader.onload=e=>{
+        const buf=e.target.result,o=getExifOrientation(buf);
+        const blob=new Blob([buf],{type:file.type||'image/jpeg'});
+        const url=URL.createObjectURL(blob);
+        const img=new Image();
+        img.onload=()=>detectCanvasAutoOrient(auto=>{
+          const cv=drawOriented(img,auto?1:o,maxDim);     // ถ้าเบราว์เซอร์หมุนให้แล้ว อย่าหมุนซ้ำ
+          URL.revokeObjectURL(url);resolve(cv);
+        });
+        img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('decode'));};
+        img.src=url;
+      };
+      reader.onerror=()=>reject(new Error('read'));
+      reader.readAsArrayBuffer(file);
+    }
+  });
+}
+function handleFile(file){
+  if(!file)return;
+  showError('');
+  getOrientedCanvas(file,1600).then(cv=>{
+    const jpeg=cv.toDataURL('image/jpeg',0.88);
+    G.imageType='image/jpeg';G.imageBase64=jpeg.split(',')[1];
+    const prevImg=document.getElementById('preview-img');
+    // overlay + ตอนตรวจ ใช้รูป normalized ตัวเดียวกัน (orientation ตรงเสมอ)
+    prevImg.onload=()=>setTimeout(()=>{
+      try{
+        const{gray,w:gw,h:gh}=omrToGray(prevImg);
+        const thr=otsu(gray);
+        const markers=detectMarkers(gray,gw,gh,thr);
+        showMarkerOverlay(prevImg,markers,gw,gh);
+      }catch(ex){}
+    },80);
+    prevImg.src=jpeg;
+    document.getElementById('preview-name').textContent=file.name;
+    document.getElementById('preview-wrap').style.display='block';
+    document.getElementById('grade-btn').disabled=false;
+  }).catch(()=>{
+    // last-resort (เช่น HEIC ที่เบราว์เซอร์ decode ไม่ได้)
+    const reader=new FileReader();
+    reader.onload=e=>{
+      G.imageType=file.type||'image/jpeg';G.imageBase64=(e.target.result.split(',')[1]||'');
+      document.getElementById('preview-img').src=e.target.result;
+      document.getElementById('preview-name').textContent=file.name+' — ⚠️ แนะนำถ่ายเป็น JPG';
+      document.getElementById('preview-wrap').style.display='block';
+      document.getElementById('grade-btn').disabled=false;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ===== Marker overlay (เหมือนรูปที่ 2 — L-shape บอกตำแหน่ง marker) =====
+function showMarkerOverlay(imgEl,markers,gw,gh){
+  const wrap=document.getElementById('preview-wrap');
+  wrap.querySelectorAll('.marker-overlay').forEach(c=>c.remove());
+  const cvs=document.createElement('canvas');
+  cvs.className='marker-overlay';
+  const dw=imgEl.offsetWidth||imgEl.naturalWidth;
+  const dh=imgEl.offsetHeight||imgEl.naturalHeight;
+  cvs.width=dw; cvs.height=dh;
+  wrap.appendChild(cvs);
+  const ctx=cvs.getContext('2d');
+  const sx=dw/gw, sy=dh/gh;
+  if(markers){
+    markers.forEach(([mx,my])=>{
+      const px=mx*sx, py=my*sy, sz=Math.max(20,dw*0.048);
+      const lw=Math.max(2.5,sz*0.13), arm=sz*0.48;
+      ctx.strokeStyle='#3fa9f5'; ctx.lineWidth=lw; ctx.lineCap='round';
+      [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([dx,dy])=>{
+        ctx.beginPath();
+        ctx.moveTo(px+dx*sz, py+dy*(sz-arm));
+        ctx.lineTo(px+dx*sz, py+dy*sz);
+        ctx.lineTo(px+dx*(sz-arm), py+dy*sz);
+        ctx.stroke();
+      });
+      // วงในจุด marker
+      ctx.strokeStyle='rgba(63,169,245,0.45)'; ctx.lineWidth=lw*0.6;
+      ctx.beginPath(); ctx.arc(px,py,sz*0.32,0,7); ctx.stroke();
+    });
+    _badge(ctx,'✅ พบจุดอ้างอิงครบ 4 มุม — พร้อมตรวจ','rgba(0,170,75,0.85)',dw);
+  } else {
+    _badge(ctx,'⚠️ หาจุดไม่ครบ — ถ่ายให้เห็น 4 มุมบนพื้นขาว','rgba(200,40,30,0.85)',dw);
+  }
+}
+function _badge(ctx,txt,bg,dw){
+  const pad=10,bh=34,bw=Math.min(dw-20,340),fs=Math.max(11,Math.min(13,dw*0.033));
+  ctx.fillStyle=bg; _rrect(ctx,pad,pad,bw,bh,9); ctx.fill();
+  ctx.fillStyle='#fff'; ctx.font=`600 ${fs}px Sarabun,sans-serif`;
+  ctx.fillText(txt,pad+12,pad+bh*0.70);
+}
+function _rrect(ctx,x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r); ctx.closePath();
+}
+(function initDrop(){
+  const dz=document.getElementById('drop-zone');
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);});
+})();
+
+// ============ GRADE ============
+function onGradeSubject(){
+  const id=document.getElementById('grade-subject').value;
+  G.gradeSubject=G.subjects.find(x=>String(x.id)===String(id))||null;
+  document.getElementById('grade-need').style.display=G.gradeSubject?'none':'block';
+  if(G.gradeSubject) document.getElementById('g-room').value=G.gradeSubject.room||'';
+}
+function gradeExam(){
+  if(!G.gradeSubject){showError('กรุณาเลือกรายวิชาที่จะตรวจ');return;}
+  const key=G.gradeSubject.answer_key||{},numQ=G.gradeSubject.num_questions||20;
+  if(!Object.keys(key).length){showError('รายวิชานี้ยังไม่มีเฉลย กรุณากรอกที่แท็บแรกก่อน');return;}
+  if(!G.imageBase64){showError('กรุณาอัปโหลดรูปกระดาษคำตอบก่อน');return;}
+  const btn=document.getElementById('grade-btn');
+  btn.disabled=true;
+  document.getElementById('btn-text').innerHTML='<span class="spinner"></span>&nbsp;กำลังอ่าน...';
+  showError(''); document.getElementById('result-section').style.display='none';
+  const img=new Image();
+  img.onload=()=>setTimeout(()=>{
+    try{const r=runOMR(img,numQ);if(!r.ok)showError('อ่านไม่สำเร็จ: '+r.reason);else showResult(r.answers,key,numQ,r.uncertain);}
+    catch(e){showError('เกิดข้อผิดพลาด: '+e.message);}
+    finally{btn.disabled=false;document.getElementById('btn-text').textContent='ตรวจข้อสอบ';}
+  },30);
+  img.onerror=()=>{btn.disabled=false;document.getElementById('btn-text').textContent='ตรวจข้อสอบ';showError('โหลดรูปไม่ได้ ลองใหม่');};
+  img.src='data:image/jpeg;base64,'+G.imageBase64;
+}
+function showResult(answers,key,numQ,uncertain){
+  G.curKey=key;G.curNumQ=numQ;
+  const tbody=document.getElementById('result-body'); tbody.innerHTML='';
+  const optList=['-','ก','ข','ค','ง','?'];
+  for(let i=1;i<=numQ;i++){
+    const a=answers[i]||'-',correctAns=key[i]||'—';
+    const sel='<select class="ans-sel" data-q="'+i+'" onchange="recomputeScore()">'
+      +optList.map(o=>'<option value="'+o+'"'+(o===a?' selected':'')+'>'+(o==='-'?'ไม่ตอบ':o==='?'?'ไม่ชัด':o)+'</option>').join('')+'</select>';
+    tbody.innerHTML+='<tr id="qrow-'+i+'"><td><strong>'+i+'</strong></td><td>'+sel+'</td><td>'+correctAns+'</td><td class="qres"></td></tr>';
+  }
+  const noteEl=document.getElementById('ai-note');
+  noteEl.innerHTML='📝 ระบบอ่านด้วย OMR'+(uncertain?' — มี <b>'+uncertain+'</b> ข้อที่ไม่ชัด (ตรวจสอบวงรอบ ? ด้านบน)':'')
+    +'<br>โปรดตรวจทานคำตอบ แก้ในช่องเลือกได้ทันที คะแนนปรับให้อัตโนมัติ';
+  noteEl.style.display='block';
+  document.getElementById('result-section').style.display='block';
+  recomputeScore();
+  document.getElementById('result-section').scrollIntoView({behavior:'smooth'});
+}
+function recomputeScore(){
+  const key=G.curKey,numQ=G.curNumQ;
+  let correct=0,wrong=0,blank=0; const answers={};
+  for(let i=1;i<=numQ;i++){
+    const sel=document.querySelector('.ans-sel[data-q="'+i+'"]');
+    const a=sel?sel.value:'-'; answers[i]=a;
+    const ca=key[i];
+    const row=document.getElementById('qrow-'+i),cell=row.querySelector('.qres');
+    if(!ca){row.className='';cell.innerHTML='<span class="badge skip">—</span>';}
+    else if(a==='-'||a==='?'){blank++;row.className='row-wrong';cell.innerHTML='<span class="badge skip">'+(a==='?'?'ไม่ชัด':'ไม่ตอบ')+'</span>';}
+    else if(a===ca){correct++;row.className='row-correct';cell.innerHTML='<span class="badge ok">ถูก</span>';}
+    else{wrong++;row.className='row-wrong';cell.innerHTML='<span class="badge no">ผิด</span>';}
+  }
+  const total=Object.keys(key).length,pct=total>0?Math.round(correct/total*100):0;
+  document.getElementById('res-score').textContent=correct;
+  document.getElementById('res-total').textContent='จาก '+total+' คะแนน';
+  document.getElementById('res-pct').textContent=pct+'%';
+  document.getElementById('res-correct').textContent=correct;
+  document.getElementById('res-wrong').textContent=wrong;
+  document.getElementById('res-blank').textContent=blank;
+  G.lastResult={score:correct,total,percent:pct,answers};
+  const sb=document.getElementById('save-result-btn');
+  sb.textContent='💾 บันทึกคะแนนลงระบบ'; sb.disabled=false;
+}
+async function saveResult(){
+  if(!G.lastResult||!G.gradeSubject)return;
+  const btn=document.getElementById('save-result-btn');
+  btn.disabled=true; btn.textContent='กำลังบันทึก...';
+  const payload={
+    subject_id:G.gradeSubject.id,
+    student_name:document.getElementById('g-name').value.trim()||null,
+    student_no:document.getElementById('g-no').value.trim()||null,
+    room:document.getElementById('g-room').value.trim()||null,
+    score:G.lastResult.score, total:G.lastResult.total,
+    percent:G.lastResult.percent, answers:G.lastResult.answers
+  };
+  try{
+    const res=await fetch(SB+'/rest/v1/exam_results',{method:'POST',headers:H,body:JSON.stringify(payload)});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    btn.textContent='✅ บันทึกคะแนนแล้ว';
+  }catch(e){btn.disabled=false;btn.textContent='💾 บันทึกคะแนนลงระบบ';showError('บันทึกไม่สำเร็จ: '+e.message);}
+}
+function showError(msg){
+  const box=document.getElementById('error-box');
+  if(!msg){box.style.display='none';return;}
+  box.textContent='⚠️ '+msg; box.style.display='block';
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// ============ INIT ============
+(function init(){
+  const saved=sessionStorage.getItem('exam_user');
+  if(saved){ try{ G.user=JSON.parse(saved); showApp(); return; }catch(e){} }
+  document.getElementById('login-screen').style.display='flex';
+})();
+</script>
+</body>
+</html>
