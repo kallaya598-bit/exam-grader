@@ -139,7 +139,7 @@ body {
 .logo-emblem {
   width: 116px; height: 116px; border-radius: 50%; position: relative; z-index: 1;
   background: linear-gradient(145deg, #4ade80 0%, #22c55e 40%, #0c7a38 100%);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  display: flex; align-items: center; justify-content: center;
   box-shadow:
     0 0 0 3px rgba(34,197,94,0.25),
     0 0 32px rgba(34,197,94,0.45),
@@ -482,8 +482,26 @@ body {
       <div class="logo-ring2"></div>
       <div class="logo-ring"></div>
       <div class="logo-emblem">
-        <span class="em-th">นย</span>
-        <span class="em-sub">NAYANGKLAK</span>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="72" height="72" aria-hidden="true">
+          <!-- document body -->
+          <path d="M18 13 Q18 9 23 9 L60 9 L76 25 L76 89 Q76 93 71 93 L23 93 Q18 93 18 89 Z"
+                fill="rgba(255,255,255,0.18)" stroke="white" stroke-width="4.5" stroke-linejoin="round"/>
+          <!-- folded corner -->
+          <path d="M60 9 L76 25 L60 25 Z"
+                fill="rgba(255,255,255,0.40)" stroke="white" stroke-width="3.5" stroke-linejoin="round"/>
+          <!-- row 1 -->
+          <circle cx="34" cy="40" r="6" fill="none" stroke="rgba(255,255,255,0.80)" stroke-width="3.5"/>
+          <line x1="46" y1="40" x2="66" y2="40" stroke="white" stroke-width="4" stroke-linecap="round"/>
+          <!-- row 2 -->
+          <circle cx="34" cy="57" r="6" fill="none" stroke="rgba(255,255,255,0.80)" stroke-width="3.5"/>
+          <line x1="46" y1="57" x2="66" y2="57" stroke="white" stroke-width="4" stroke-linecap="round"/>
+          <!-- row 3: filled circle + mini check + short line -->
+          <circle cx="34" cy="74" r="6" fill="rgba(255,255,255,0.95)" stroke="none"/>
+          <polyline points="31,74 33.5,76.5 37.5,71" fill="none" stroke="#16a34a" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="46" y1="74" x2="57" y2="74" stroke="white" stroke-width="4" stroke-linecap="round"/>
+          <!-- large checkmark bottom-right -->
+          <polyline points="55,68 65,81 85,53" fill="none" stroke="white" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </div>
     </div>
     <div class="login-school">โรงเรียนนายางกลักพิทยาคม</div>
@@ -502,7 +520,18 @@ body {
   <!-- HEADER -->
   <div class="app-header">
     <div class="header-inner">
-      <div class="h-logo-badge">นย</div>
+      <div class="h-logo-badge">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="22" height="22" aria-hidden="true">
+          <path d="M18 13 Q18 9 23 9 L60 9 L76 25 L76 89 Q76 93 71 93 L23 93 Q18 93 18 89 Z"
+                fill="rgba(255,255,255,0.18)" stroke="white" stroke-width="5" stroke-linejoin="round"/>
+          <path d="M60 9 L76 25 L60 25 Z" fill="rgba(255,255,255,0.40)" stroke="white" stroke-width="4" stroke-linejoin="round"/>
+          <circle cx="34" cy="40" r="6" fill="none" stroke="rgba(255,255,255,0.80)" stroke-width="4.5"/>
+          <line x1="46" y1="40" x2="66" y2="40" stroke="white" stroke-width="5" stroke-linecap="round"/>
+          <circle cx="34" cy="58" r="6" fill="none" stroke="rgba(255,255,255,0.80)" stroke-width="4.5"/>
+          <line x1="46" y1="58" x2="66" y2="58" stroke="white" stroke-width="5" stroke-linecap="round"/>
+          <polyline points="52,66 63,80 84,51" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
       <div class="h-title">ระบบตรวจข้อสอบ</div>
       <div class="h-user" id="hdr-user"></div>
       <button class="btn-logout" onclick="doLogout()">ออกจากระบบ</button>
