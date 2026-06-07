@@ -1063,16 +1063,34 @@ function runOMR(img,numQ){
   if(!Hm)return{ok:false,reason:'คำนวณตำแหน่งไม่สำเร็จ ลองถ่ายใหม่ให้ตรงขึ้น'};
   const dPhoto=Math.hypot(markers[1][0]-markers[0][0],markers[1][1]-markers[0][1]);
   const dCanon=Math.hypot(L.srcQuad[1][0]-L.srcQuad[0][0],L.srcQuad[1][1]-L.srcQuad[0][1]);
-  const scale=dPhoto/dCanon, sampleR=Math.max(3,L.R*scale*0.55);
+  const scale=dPhoto/dCanon, sampleR=Math.max(3,L.R*scale*0.65);
   const answers={};let uncertain=0;
+  // วัดความสว่างกระดาษว่างจากหลายจุดรอบ ๆ เพื่อ calibrate (robust paper white)
+  const paperSamples=[];
+  [MK.tl,MK.tr,MK.br,MK.bl].forEach(m=>{
+    const[px,py]=applyH(Hm,m.x,m.y);
+    // ตัวอย่างนอกจุดมุม (ห่างออกมาเล็กน้อยเพื่อหลีกเลี่ยงตัว marker ดำ)
+    const off=MK.size*scale*1.2;
+    const dx=px<w/2?off:-off, dy=py<h/2?off:-off;
+    paperSamples.push(sampleMean(gray,w,h,px+dx,py+dy,sampleR*1.5));
+  });
+  const paperWhite=Math.max(...paperSamples);  // ค่าขาวสุดของกระดาษ
+
   for(let q=1;q<=numQ;q++){
     const m=[];
-    for(let k=0;k<4;k++){const b=L.bubbles[(q-1)*4+k];const[px,py]=applyH(Hm,b.x,b.y);m.push(sampleMean(gray,w,h,px,py,sampleR));}
-    const paper=Math.max(...m);
+    for(let k=0;k<4;k++){
+      const b=L.bubbles[(q-1)*4+k];
+      const[px,py]=applyH(Hm,b.x,b.y);
+      m.push(sampleMean(gray,w,h,px,py,sampleR));
+    }
+    // เทียบสัมพัทธ์: ใช้ paperWhite เป็นฐาน แทนที่จะเอา max ของ 4 วง
+    const ref=Math.min(paperWhite, Math.max(...m)+5);
     let mi=0;for(let k=1;k<4;k++)if(m[k]<m[mi])mi=k;
-    const asc=[...m].sort((a,b)=>a-b),c0=paper-asc[0],c1=paper-asc[1];
-    if(c0<22)answers[q]='-';
-    else if(c1>0.6*c0&&c1>18){answers[q]='?';uncertain++;}
+    const asc=[...m].sort((a,b)=>a-b);
+    const c0=ref-asc[0];   // ความต่างของวงเข้มสุด กับกระดาษ
+    const c1=ref-asc[1];   // วงเข้มรองลงมา
+    if(c0<10)answers[q]='-';                              // ไม่ตอบ (< 10 gray levels)
+    else if(c1>0.55*c0&&c1>14){answers[q]='?';uncertain++;}  // ระบาย 2 วง
     else answers[q]=CHOICES[mi];
   }
   return{ok:true,answers,uncertain};
