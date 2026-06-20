@@ -532,7 +532,7 @@ body {
           <polyline points="52,66 63,80 84,51" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      <div class="h-title">ระบบตรวจข้อสอบ <span style="font-size:11px;opacity:0.65;font-weight:600">v3</span></div>
+      <div class="h-title">ระบบตรวจข้อสอบ <span style="font-size:11px;opacity:0.65;font-weight:600">v4</span></div>
       <div class="h-user" id="hdr-user"></div>
       <button class="btn-logout" onclick="doLogout()">ออกจากระบบ</button>
     </div>
@@ -1090,7 +1090,10 @@ function detectMarkersAt(gray,w,h,markerThr){
   if(blen<w*0.15) return null;
   // หมุน 90° CW = ทิศทางขึ้น (image coords y เพิ่มลงล่าง)
   const ux=bdy/blen, uy=-bdx/blen;
-  const upDist=blen*SHEET_H/SHEET_W;
+  // ใช้ "อัตราส่วนระยะ marker จริง" (แนวตั้ง/แนวนอน) ไม่ใช่ขนาดกระดาษ —
+  // จุด marker เว้นขอบเข้ามา: แนวตั้ง=(bl.y-tl.y) แนวนอน=(tr.x-tl.x)
+  const mkVspan=MK.bl.y-MK.tl.y, mkHspan=MK.tr.x-MK.tl.x;
+  const upDist=blen*mkVspan/mkHspan;
   // ถ้ามี candidate จริงในครึ่งบน ให้ใช้แทนค่าประมาณ
   const topCands=cand.filter(b=>b.cy<h*0.5&&b!==botL&&b!==botR);
   let topL,topR,extrapolated=true;
