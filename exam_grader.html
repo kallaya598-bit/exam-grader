@@ -1021,9 +1021,20 @@ function otsu(gray){
   return thr;
 }
 function detectMarkers(gray,w,h,thr){
-  // ใช้ threshold เข้มกว่า Otsu เพราะ marker ต้องเป็น "สีดำปริ้นเตอร์" เท่านั้น
-  // ตัดดินสอ/พื้นหลังมืด/ปากกาออกด้วย threshold ที่เฉพาะเจาะจง
-  const markerThr = Math.min(thr * 0.65, 68);
+  // ลองหลาย threshold อัตโนมัติ: เริ่มเข้ม (กันจับตัวหนังสือ/ดินสอผิด) แล้วค่อยผ่อนลง
+  // จุดดำในรูปถ่ายมือถือมักเป็นเทา ~60–110 ไม่ได้ดำสนิท จึงต้องเผื่อ threshold สูงด้วย
+  const tries=[Math.min(thr*0.65,68), Math.min(thr*0.85,95), Math.min(thr,120), Math.min(thr*1.2,150)];
+  let best=null;
+  for(const t of tries){
+    const r=detectMarkersAt(gray,w,h,t);
+    if(r){
+      if(!r.extrapolated) return r;   // เจอครบ 4 มุมจริง = ดีที่สุด หยุดเลย
+      if(!best) best=r;               // เจอแบบประมาณ เก็บไว้ก่อน เผื่อ threshold ถัดไปเจอครบ
+    }
+  }
+  return best;
+}
+function detectMarkersAt(gray,w,h,markerThr){
   const dark=new Uint8Array(w*h);
   for(let i=0;i<gray.length;i++) dark[i]=gray[i]<markerThr?1:0;
   const label=new Int32Array(w*h),blobs=[],stack=[];
@@ -1054,7 +1065,7 @@ function detectMarkers(gray,w,h,thr){
         && ar>0.62 && ar<1.60   // ใกล้สี่เหลี่ยม (ตัดปากกาออก)
         && fill>0.74;            // ทึบสูง (ตัดตัวหนังสือ/เส้นออก)
   });
-  if(cand.length<4) return null;
+  if(cand.length<2) return null;
   // เลือก candidate ที่ใกล้มุมภาพที่สุด 1 ตัวต่อมุม
   const corners=[[0,0],[w,0],[w,h],[0,h]],picked=[];
   for(const c of corners){
@@ -1062,11 +1073,42 @@ function detectMarkers(gray,w,h,thr){
     for(const b of cand){const d=(b.cx-c[0])**2+(b.cy-c[1])**2;if(d<bd){bd=d;best=b;}}
     picked.push(best);
   }
-  if(new Set(picked.map(p=>p.cx+','+p.cy)).size<4) return null;
-  // Sanity check: 4 จุดต้องกระจายตัวกว้างพอ (ไม่กระจุกกัน)
-  const xs=picked.map(p=>p.cx),ys=picked.map(p=>p.cy);
-  if(Math.max(...xs)-Math.min(...xs)<w*0.18 || Math.max(...ys)-Math.min(...ys)<h*0.18) return null;
-  return picked.map(p=>[p.cx,p.cy]);
+  const uniq=new Set(picked.map(p=>p.cx+','+p.cy));
+  if(uniq.size>=4){
+    // Sanity check: 4 จุดต้องกระจายตัวกว้างพอ (ไม่กระจุกกัน)
+    const xs=picked.map(p=>p.cx),ys=picked.map(p=>p.cy);
+    if(Math.max(...xs)-Math.min(...xs)<w*0.18||Math.max(...ys)-Math.min(...ys)<h*0.18) return null;
+    return {pts:picked.map(p=>[p.cx,p.cy]), extrapolated:false};
+  }
+  // Fallback: ถ้าเห็นแค่ 2 จุดล่าง (กล้องตัดส่วนบนออก) → ประมาณมุมบนจากอัตราส่วน SHEET_H/SHEET_W
+  const byDist=(cx,cy)=>cand.slice().sort((a,b)=>(a.cx-cx)**2+(a.cy-cy)**2-(b.cx-cx)**2-(b.cy-cy)**2);
+  const botL=byDist(0,h)[0], botR=byDist(w,h)[0];
+  if(!botL||!botR||botL===botR) return null;
+  if(botL.cy<h*0.35||botR.cy<h*0.35) return null;  // ต้องอยู่ในครึ่งล่าง
+  const bdx=botR.cx-botL.cx, bdy=botR.cy-botL.cy;
+  const blen=Math.hypot(bdx,bdy);
+  if(blen<w*0.15) return null;
+  // หมุน 90° CW = ทิศทางขึ้น (image coords y เพิ่มลงล่าง)
+  const ux=bdy/blen, uy=-bdx/blen;
+  const upDist=blen*SHEET_H/SHEET_W;
+  // ถ้ามี candidate จริงในครึ่งบน ให้ใช้แทนค่าประมาณ
+  const topCands=cand.filter(b=>b.cy<h*0.5&&b!==botL&&b!==botR);
+  let topL,topR,extrapolated=true;
+  if(topCands.length>=2){
+    topCands.sort((a,b)=>a.cx-b.cx);
+    topL=[topCands[0].cx,topCands[0].cy];
+    topR=[topCands[topCands.length-1].cx,topCands[topCands.length-1].cy];
+    extrapolated=false;
+  } else {
+    topL=[botL.cx+ux*upDist, botL.cy+uy*upDist];
+    topR=[botR.cx+ux*upDist, botR.cy+uy*upDist];
+    if(topCands.length===1){  // 1 จุดจริง + 1 ประมาณ
+      const tc=topCands[0];
+      if(tc.cx<w/2) topL=[tc.cx,tc.cy]; else topR=[tc.cx,tc.cy];
+    }
+  }
+  if(topL[1]>=botL.cy||topR[1]>=botR.cy) return null;
+  return {pts:[topL,topR,[botR.cx,botR.cy],[botL.cx,botL.cy]], extrapolated};
 }
 function solveHomography(src,dst){
   const A=[],b=[];
@@ -1099,8 +1141,9 @@ function sampleMean(gray,w,h,px,py,rad){
 function runOMR(img,numQ){
   const{gray,w,h}=omrToGray(img);
   const thr=otsu(gray);
-  const markers=detectMarkers(gray,w,h,thr);
-  if(!markers)return{ok:false,reason:'หาจุดดำ 4 มุมไม่เจอ — ถ่ายให้เห็นครบทั้ง 4 มุม บนพื้นสว่าง ไม่เอียงมาก'};
+  const det=detectMarkers(gray,w,h,thr);
+  if(!det)return{ok:false,reason:'หาจุดดำ 4 มุมไม่เจอ — ถ่ายให้เห็นครบทั้ง 4 มุม บนพื้นสว่าง ไม่เอียงมาก'};
+  const markers=det.pts;
   const L=omrLayout(numQ);
   const Hm=solveHomography(L.srcQuad,markers);
   if(!Hm)return{ok:false,reason:'คำนวณตำแหน่งไม่สำเร็จ ลองถ่ายใหม่ให้ตรงขึ้น'};
@@ -1243,8 +1286,8 @@ function handleFile(file){
       try{
         const{gray,w:gw,h:gh}=omrToGray(prevImg);
         const thr=otsu(gray);
-        const markers=detectMarkers(gray,gw,gh,thr);
-        showMarkerOverlay(prevImg,markers,gw,gh);
+        const det=detectMarkers(gray,gw,gh,thr);
+        showMarkerOverlay(prevImg,det,gw,gh);
       }catch(ex){}
     },80);
     prevImg.src=jpeg;
@@ -1266,7 +1309,7 @@ function handleFile(file){
 }
 
 // ===== Marker overlay (เหมือนรูปที่ 2 — L-shape บอกตำแหน่ง marker) =====
-function showMarkerOverlay(imgEl,markers,gw,gh){
+function showMarkerOverlay(imgEl,det,gw,gh){
   const wrap=document.getElementById('preview-wrap');
   wrap.querySelectorAll('.marker-overlay').forEach(c=>c.remove());
   const cvs=document.createElement('canvas');
@@ -1277,11 +1320,15 @@ function showMarkerOverlay(imgEl,markers,gw,gh){
   wrap.appendChild(cvs);
   const ctx=cvs.getContext('2d');
   const sx=dw/gw, sy=dh/gh;
-  if(markers){
-    markers.forEach(([mx,my])=>{
+  if(det){
+    const solid=det.extrapolated?'#f5a623':'#3fa9f5';
+    const faded=det.extrapolated?'rgba(245,166,35,0.45)':'rgba(63,169,245,0.45)';
+    det.pts.forEach(([mx,my],i)=>{
       const px=mx*sx, py=my*sy, sz=Math.max(20,dw*0.048);
       const lw=Math.max(2.5,sz*0.13), arm=sz*0.48;
-      ctx.strokeStyle='#3fa9f5'; ctx.lineWidth=lw; ctx.lineCap='round';
+      // มุมที่ประมาณ (index 0,1 = top) แสดงเป็นเส้นประ
+      if(det.extrapolated&&i<2){ ctx.setLineDash([lw*2,lw*1.5]); } else { ctx.setLineDash([]); }
+      ctx.strokeStyle=solid; ctx.lineWidth=lw; ctx.lineCap='round';
       [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([dx,dy])=>{
         ctx.beginPath();
         ctx.moveTo(px+dx*sz, py+dy*(sz-arm));
@@ -1289,11 +1336,15 @@ function showMarkerOverlay(imgEl,markers,gw,gh){
         ctx.lineTo(px+dx*(sz-arm), py+dy*sz);
         ctx.stroke();
       });
-      // วงในจุด marker
-      ctx.strokeStyle='rgba(63,169,245,0.45)'; ctx.lineWidth=lw*0.6;
+      ctx.setLineDash([]);
+      ctx.strokeStyle=faded; ctx.lineWidth=lw*0.6;
       ctx.beginPath(); ctx.arc(px,py,sz*0.32,0,7); ctx.stroke();
     });
-    _badge(ctx,'✅ พบจุดอ้างอิงครบ 4 มุม — พร้อมตรวจ','rgba(0,170,75,0.85)',dw);
+    if(det.extrapolated){
+      _badge(ctx,'🔶 เห็นจุดล่างครบ — ประมาณมุมบน ผลตรวจได้ แต่แม่นน้อยลง','rgba(180,90,0,0.88)',dw);
+    } else {
+      _badge(ctx,'✅ พบจุดอ้างอิงครบ 4 มุม — พร้อมตรวจ','rgba(0,170,75,0.85)',dw);
+    }
   } else {
     _badge(ctx,'⚠️ หาจุดไม่ครบ — ถ่ายให้เห็น 4 มุมบนพื้นขาว','rgba(200,40,30,0.85)',dw);
   }
