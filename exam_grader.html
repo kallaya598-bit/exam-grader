@@ -532,7 +532,7 @@ body {
           <polyline points="52,66 63,80 84,51" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      <div class="h-title">ระบบตรวจข้อสอบ <span style="font-size:11px;opacity:0.65;font-weight:600">v4</span></div>
+      <div class="h-title">ระบบตรวจข้อสอบ <span style="font-size:11px;opacity:0.65;font-weight:600">v5</span></div>
       <div class="h-user" id="hdr-user"></div>
       <button class="btn-logout" onclick="doLogout()">ออกจากระบบ</button>
     </div>
@@ -1023,7 +1023,8 @@ function otsu(gray){
 function detectMarkers(gray,w,h,thr){
   // ลองหลาย threshold อัตโนมัติ: เริ่มเข้ม (กันจับตัวหนังสือ/ดินสอผิด) แล้วค่อยผ่อนลง
   // จุดดำในรูปถ่ายมือถือมักเป็นเทา ~60–110 ไม่ได้ดำสนิท จึงต้องเผื่อ threshold สูงด้วย
-  const tries=[Math.min(thr*0.65,68), Math.min(thr*0.85,95), Math.min(thr,120), Math.min(thr*1.2,150)];
+  // cap ไม่เกิน ~110 เพื่อกันพื้นหลัง/เงา/แผ่นรองตัดสีเข้ม (~110-130) กลายเป็น blob ปลอม
+  const tries=[Math.min(thr*0.6,62), Math.min(thr*0.8,85), Math.min(thr,108)];
   let best=null;
   for(const t of tries){
     const r=detectMarkersAt(gray,w,h,t);
@@ -1057,15 +1058,22 @@ function detectMarkersAt(gray,w,h,markerThr){
     }
   }
   const imgArea=w*h;
-  // กรองเฉพาะ "สี่เหลี่ยมทึบ" — fill>0.74 ตัดปากกา/เส้น/ตัวหนังสือออก
-  const cand=blobs.filter(b=>{
+  // กรองเฉพาะ "สี่เหลี่ยมจัตุรัสทึบ" — เข้มขึ้นเพื่อตัดเงา/ขอบกระดาษพับ/พื้นหลัง/วงระบาย
+  let cand=blobs.filter(b=>{
     const bw=b.maxx-b.minx+1,bh=b.maxy-b.miny+1,ar=bw/bh,fill=b.area/(bw*bh);
-    return b.area>imgArea*0.0003
-        && b.area<imgArea*0.018
-        && ar>0.70 && ar<1.42   // ใกล้สี่เหลี่ยมจัตุรัส (ตัดปากกา/เส้นออก)
-        && fill>0.84;            // ทึบเกือบเต็มกรอบ — สี่เหลี่ยมทึบ≈1.0 ตัด "วงกลมระบายดำ" (fill≈0.785) ออก
+    return b.area>imgArea*0.0004
+        && b.area<imgArea*0.016
+        && ar>0.78 && ar<1.28   // เกือบจัตุรัส (ตัดเงายาว/ขอบพับ)
+        && fill>0.86;            // ทึบเกือบเต็มกรอบ (สี่เหลี่ยมพิมพ์≈1.0 ตัดวงกลมระบาย 0.785 + เงาขรุขระ)
   });
   if(cand.length<2) return null;
+  // marker ทั้ง 4 มีขนาดใกล้เคียงกัน — คัดเฉพาะ blob ที่ขนาดใกล้ median (ตัดเงา/จุดปลอมที่ขนาดต่างมาก)
+  if(cand.length>4){
+    const areas=cand.map(b=>b.area).sort((a,b)=>a-b);
+    const med=areas[areas.length>>1];
+    const sized=cand.filter(b=>b.area>=med*0.45 && b.area<=med*2.3);
+    if(sized.length>=2) cand=sized;
+  }
   // เลือก candidate ที่ใกล้มุมภาพที่สุด 1 ตัวต่อมุม
   const corners=[[0,0],[w,0],[w,h],[0,h]],picked=[];
   for(const c of corners){
