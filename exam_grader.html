@@ -532,7 +532,7 @@ body {
           <polyline points="52,66 63,80 84,51" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      <div class="h-title">ระบบตรวจข้อสอบ <span style="font-size:11px;opacity:0.65;font-weight:600">v5</span></div>
+      <div class="h-title">ระบบตรวจข้อสอบ <span style="font-size:11px;opacity:0.65;font-weight:600">v6</span></div>
       <div class="h-user" id="hdr-user"></div>
       <button class="btn-logout" onclick="doLogout()">ออกจากระบบ</button>
     </div>
@@ -702,7 +702,8 @@ const MK = { size:50, tl:{x:55,y:55}, tr:{x:745,y:55}, br:{x:745,y:1075}, bl:{x:
 const G = {
   user: null, subjects: [], current: null, gradeSubject: null,
   lastResult: null, imageBase64: null, imageType: 'image/jpeg',
-  curKey: {}, curNumQ: 20
+  curKey: {}, curNumQ: 20,
+  quad: null, grayW: 0, grayH: 0, _drag: -1   // จุด 4 มุมที่ลากปรับได้ (พิกัด gray-image)
 };
 
 // ============ LOGIN ============
@@ -1149,12 +1150,17 @@ function sampleMean(gray,w,h,px,py,rad){
   }
   return tot?sum/tot:255;
 }
-function runOMR(img,numQ){
+function runOMR(img,numQ,manualQuad){
   const{gray,w,h}=omrToGray(img);
   const thr=otsu(gray);
-  const det=detectMarkers(gray,w,h,thr);
-  if(!det)return{ok:false,reason:'หาจุดดำ 4 มุมไม่เจอ — ถ่ายให้เห็นครบทั้ง 4 มุม บนพื้นสว่าง ไม่เอียงมาก'};
-  const markers=det.pts;
+  let markers;
+  if(manualQuad&&manualQuad.length===4){
+    markers=manualQuad.map(p=>[p[0],p[1]]);   // ใช้จุดที่ครูลากปรับเอง — แม่นที่สุด
+  }else{
+    const det=detectMarkers(gray,w,h,thr);
+    if(!det)return{ok:false,reason:'หาจุดดำ 4 มุมไม่เจอ — ลากปรับจุด 4 มุมเอง หรือถ่ายให้เห็นครบ 4 มุม'};
+    markers=det.pts;
+  }
   const L=omrLayout(numQ);
   const Hm=solveHomography(L.srcQuad,markers);
   if(!Hm)return{ok:false,reason:'คำนวณตำแหน่งไม่สำเร็จ ลองถ่ายใหม่ให้ตรงขึ้น'};
@@ -1288,6 +1294,7 @@ function getOrientedCanvas(file,maxDim){
 function handleFile(file){
   if(!file)return;
   showError('');
+  G.quad=null; G.autoOk=false;   // รีเซ็ตจุดลากเมื่อเปลี่ยนรูป
   getOrientedCanvas(file,1600).then(cv=>{
     const jpeg=cv.toDataURL('image/jpeg',0.88);
     G.imageType='image/jpeg';G.imageBase64=jpeg.split(',')[1];
@@ -1298,7 +1305,7 @@ function handleFile(file){
         const{gray,w:gw,h:gh}=omrToGray(prevImg);
         const thr=otsu(gray);
         const det=detectMarkers(gray,gw,gh,thr);
-        showMarkerOverlay(prevImg,det,gw,gh);
+        initAdjustOverlay(prevImg,det,gw,gh);
       }catch(ex){}
     },80);
     prevImg.src=jpeg;
@@ -1319,62 +1326,98 @@ function handleFile(file){
   });
 }
 
-// ===== Marker overlay (เหมือนรูปที่ 2 — L-shape บอกตำแหน่ง marker) =====
-function showMarkerOverlay(imgEl,det,gw,gh){
+// ===== ลากปรับจุด 4 มุมเอง + กริดอ่านสดๆ =====
+G.autoOk=false;
+function initAdjustOverlay(imgEl,det,gw,gh){
+  G.grayW=gw; G.grayH=gh; G._drag=-1;
+  if(det){ G.quad=det.pts.map(p=>[p[0],p[1]]); G.autoOk=!det.extrapolated; }
+  else { // หาไม่เจอ → วางจุดเริ่มต้นกรอบในกระดาษ ให้ครูลากเอง
+    G.quad=[[gw*0.14,gh*0.10],[gw*0.86,gh*0.10],[gw*0.86,gh*0.93],[gw*0.14,gh*0.93]];
+    G.autoOk=false;
+  }
   const wrap=document.getElementById('preview-wrap');
   wrap.querySelectorAll('.marker-overlay').forEach(c=>c.remove());
   const cvs=document.createElement('canvas');
   cvs.className='marker-overlay';
-  const dw=imgEl.offsetWidth||imgEl.naturalWidth;
-  const dh=imgEl.offsetHeight||imgEl.naturalHeight;
-  cvs.width=dw; cvs.height=dh;
+  cvs.style.pointerEvents='auto'; cvs.style.touchAction='pan-y';
   wrap.appendChild(cvs);
-  const ctx=cvs.getContext('2d');
-  const sx=dw/gw, sy=dh/gh;
-  if(det){
-    const solid=det.extrapolated?'#f5a623':'#3fa9f5';
-    const faded=det.extrapolated?'rgba(245,166,35,0.45)':'rgba(63,169,245,0.45)';
-    det.pts.forEach(([mx,my],i)=>{
-      const px=mx*sx, py=my*sy, sz=Math.max(20,dw*0.048);
-      const lw=Math.max(2.5,sz*0.13), arm=sz*0.48;
-      // มุมที่ประมาณ (index 0,1 = top) แสดงเป็นเส้นประ
-      if(det.extrapolated&&i<2){ ctx.setLineDash([lw*2,lw*1.5]); } else { ctx.setLineDash([]); }
-      ctx.strokeStyle=solid; ctx.lineWidth=lw; ctx.lineCap='round';
-      [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([dx,dy])=>{
-        ctx.beginPath();
-        ctx.moveTo(px+dx*sz, py+dy*(sz-arm));
-        ctx.lineTo(px+dx*sz, py+dy*sz);
-        ctx.lineTo(px+dx*(sz-arm), py+dy*sz);
-        ctx.stroke();
-      });
-      ctx.setLineDash([]);
-      ctx.strokeStyle=faded; ctx.lineWidth=lw*0.6;
-      ctx.beginPath(); ctx.arc(px,py,sz*0.32,0,7); ctx.stroke();
-    });
-    // === กริดอ่าน (debug) — วาดวงที่ระบบจะไปอ่านจริง เพื่อเช็คว่าตรงกับวงบนกระดาษ ===
-    try{
-      const numQ=(G.gradeSubject&&G.gradeSubject.num_questions)||G.curNumQ||20;
-      const L=omrLayout(numQ);
-      const Hm=solveHomography(L.srcQuad,det.pts);
-      if(Hm){
-        const dPhoto=Math.hypot(det.pts[1][0]-det.pts[0][0],det.pts[1][1]-det.pts[0][1]);
-        const dCanon=Math.hypot(L.srcQuad[1][0]-L.srcQuad[0][0],L.srcQuad[1][1]-L.srcQuad[0][1]);
-        const rr=Math.max(3,L.R*(dPhoto/dCanon)*sx);
-        L.bubbles.forEach(b=>{
-          const[gx,gy]=applyH(Hm,b.x,b.y);
-          ctx.beginPath(); ctx.arc(gx*sx,gy*sy,rr,0,7);
-          ctx.strokeStyle='rgba(230,30,30,0.9)'; ctx.lineWidth=Math.max(1.2,rr*0.18); ctx.stroke();
-        });
-      }
-    }catch(ex){}
-    if(det.extrapolated){
-      _badge(ctx,'🔶 ประมาณมุมบน — เช็ควงแดงให้ตรงวงจริง','rgba(180,90,0,0.88)',dw);
-    } else {
-      _badge(ctx,'✅ พบจุด 4 มุม — เช็ควงแดงให้ตรงวงจริงก่อนตรวจ','rgba(0,170,75,0.85)',dw);
+  G._ov=cvs;
+  attachQuadDrag(cvs,imgEl);
+  drawAdjustOverlay(imgEl);
+  // วาดซ้ำหลัง layout นิ่ง (กันขนาดรูปเปลี่ยน)
+  setTimeout(()=>drawAdjustOverlay(imgEl),200);
+}
+function _containRect(imgEl){
+  const ow=imgEl.offsetWidth, oh=imgEl.offsetHeight, na=G.grayW/G.grayH, ca=ow/oh;
+  let rw,rh,ox,oy;
+  if(na>ca){ rw=ow; rh=ow/na; ox=0; oy=(oh-rh)/2; }
+  else { rh=oh; rw=oh*na; oy=0; ox=(ow-rw)/2; }
+  return {ow,oh,rw,rh,ox,oy};
+}
+function _g2d(p,R){ return [R.ox+p[0]*R.rw/G.grayW, R.oy+p[1]*R.rh/G.grayH]; }
+function _d2g(dx,dy,R){ return [(dx-R.ox)*G.grayW/R.rw, (dy-R.oy)*G.grayH/R.rh]; }
+function drawAdjustOverlay(imgEl){
+  const cvs=G._ov; if(!cvs||!G.quad) return;
+  const R=_containRect(imgEl);
+  cvs.width=R.ow; cvs.height=R.oh;
+  cvs.style.width=R.ow+'px'; cvs.style.height=R.oh+'px';
+  const ctx=cvs.getContext('2d'); ctx.clearRect(0,0,R.ow,R.oh);
+  // --- กริดแดง (ตำแหน่งที่จะอ่านจริง) ---
+  try{
+    const numQ=(G.gradeSubject&&G.gradeSubject.num_questions)||G.curNumQ||20;
+    const L=omrLayout(numQ);
+    const Hm=solveHomography(L.srcQuad,G.quad);
+    if(Hm){
+      const dPhoto=Math.hypot(G.quad[1][0]-G.quad[0][0],G.quad[1][1]-G.quad[0][1]);
+      const dCanon=Math.hypot(L.srcQuad[1][0]-L.srcQuad[0][0],L.srcQuad[1][1]-L.srcQuad[0][1]);
+      const rr=Math.max(2.5,L.R*(dPhoto/dCanon)*R.rw/G.grayW);
+      ctx.strokeStyle='rgba(230,30,30,0.92)'; ctx.lineWidth=Math.max(1.2,rr*0.2);
+      L.bubbles.forEach(b=>{ const g=applyH(Hm,b.x,b.y),d=_g2d(g,R);
+        ctx.beginPath(); ctx.arc(d[0],d[1],rr,0,7); ctx.stroke(); });
     }
-  } else {
-    _badge(ctx,'⚠️ หาจุดไม่ครบ — ถ่ายให้เห็น 4 มุมบนพื้นขาว','rgba(200,40,30,0.85)',dw);
-  }
+  }catch(ex){}
+  // --- เส้นกรอบเชื่อม 4 มุม ---
+  const D=G.quad.map(p=>_g2d(p,R));
+  ctx.strokeStyle='rgba(201,168,76,0.95)'; ctx.lineWidth=2; ctx.setLineDash([6,4]);
+  ctx.beginPath(); ctx.moveTo(D[0][0],D[0][1]);
+  for(let i=1;i<4;i++) ctx.lineTo(D[i][0],D[i][1]);
+  ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+  // --- หมุดลากได้ 4 จุด ---
+  D.forEach((d,i)=>{
+    ctx.beginPath(); ctx.arc(d[0],d[1],14,0,7);
+    ctx.fillStyle=G._drag===i?'rgba(201,168,76,0.95)':'rgba(26,39,68,0.92)'; ctx.fill();
+    ctx.lineWidth=3; ctx.strokeStyle='#fff'; ctx.stroke();
+    ctx.fillStyle='#fff'; ctx.font='bold 14px Sarabun,sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(String(i+1),d[0],d[1]+0.5);
+  });
+  // --- ป้ายบอกสถานะ ---
+  if(G.autoOk) _badge(ctx,'✅ ตรวจจับได้ — ลากหมุด 1-4 ปรับถ้ายังไม่ตรง','rgba(0,150,70,0.9)',R.ow);
+  else _badge(ctx,'✋ ลากหมุด 1-4 ทับจุดดำ 4 มุม ให้วงแดงตรงวงจริง','rgba(180,90,0,0.92)',R.ow);
+}
+function _evtPt(e,cvs){
+  const r=cvs.getBoundingClientRect();
+  const t=e.touches&&e.touches[0]?e.touches[0]:e;
+  return [t.clientX-r.left, t.clientY-r.top];
+}
+function _nearestHandle(dx,dy,imgEl){
+  const R=_containRect(imgEl); let bi=-1,bd=1e9;
+  G.quad.forEach((p,i)=>{ const d=_g2d(p,R),dist=Math.hypot(d[0]-dx,d[1]-dy); if(dist<bd){bd=dist;bi=i;} });
+  return bd<=34?bi:-1;   // จับเมื่อใกล้หมุด ≤34px (นอกนั้นปล่อยให้เลื่อนหน้าจอได้)
+}
+function attachQuadDrag(cvs,imgEl){
+  const down=e=>{ const[dx,dy]=_evtPt(e,cvs); const i=_nearestHandle(dx,dy,imgEl);
+    if(i>=0){ G._drag=i; e.preventDefault(); drawAdjustOverlay(imgEl); } };
+  const move=e=>{ if(G._drag<0)return; e.preventDefault();
+    const[dx,dy]=_evtPt(e,cvs), R=_containRect(imgEl); let g=_d2g(dx,dy,R);
+    g[0]=Math.max(0,Math.min(G.grayW,g[0])); g[1]=Math.max(0,Math.min(G.grayH,g[1]));
+    G.quad[G._drag]=g; drawAdjustOverlay(imgEl); };
+  const up=()=>{ if(G._drag>=0){ G._drag=-1; drawAdjustOverlay(imgEl); } };
+  cvs.addEventListener('touchstart',down,{passive:false});
+  cvs.addEventListener('touchmove',move,{passive:false});
+  cvs.addEventListener('touchend',up); cvs.addEventListener('touchcancel',up);
+  cvs.addEventListener('mousedown',down);
+  window.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
 }
 function _badge(ctx,txt,bg,dw){
   const pad=10,bh=34,bw=Math.min(dw-20,340),fs=Math.max(11,Math.min(13,dw*0.033));
@@ -1414,7 +1457,7 @@ function gradeExam(){
   showError(''); document.getElementById('result-section').style.display='none';
   const img=new Image();
   img.onload=()=>setTimeout(()=>{
-    try{const r=runOMR(img,numQ);if(!r.ok)showError('อ่านไม่สำเร็จ: '+r.reason);else showResult(r.answers,key,numQ,r.uncertain);}
+    try{const r=runOMR(img,numQ,G.quad);if(!r.ok)showError('อ่านไม่สำเร็จ: '+r.reason);else showResult(r.answers,key,numQ,r.uncertain);}
     catch(e){showError('เกิดข้อผิดพลาด: '+e.message);}
     finally{btn.disabled=false;document.getElementById('btn-text').textContent='ตรวจข้อสอบ';}
   },30);
