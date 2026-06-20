@@ -532,7 +532,7 @@ body {
           <polyline points="52,66 63,80 84,51" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      <div class="h-title">ระบบตรวจข้อสอบ</div>
+      <div class="h-title">ระบบตรวจข้อสอบ <span style="font-size:11px;opacity:0.65;font-weight:600">v3</span></div>
       <div class="h-user" id="hdr-user"></div>
       <button class="btn-logout" onclick="doLogout()">ออกจากระบบ</button>
     </div>
@@ -1340,10 +1340,26 @@ function showMarkerOverlay(imgEl,det,gw,gh){
       ctx.strokeStyle=faded; ctx.lineWidth=lw*0.6;
       ctx.beginPath(); ctx.arc(px,py,sz*0.32,0,7); ctx.stroke();
     });
+    // === กริดอ่าน (debug) — วาดวงที่ระบบจะไปอ่านจริง เพื่อเช็คว่าตรงกับวงบนกระดาษ ===
+    try{
+      const numQ=(G.gradeSubject&&G.gradeSubject.num_questions)||G.curNumQ||20;
+      const L=omrLayout(numQ);
+      const Hm=solveHomography(L.srcQuad,det.pts);
+      if(Hm){
+        const dPhoto=Math.hypot(det.pts[1][0]-det.pts[0][0],det.pts[1][1]-det.pts[0][1]);
+        const dCanon=Math.hypot(L.srcQuad[1][0]-L.srcQuad[0][0],L.srcQuad[1][1]-L.srcQuad[0][1]);
+        const rr=Math.max(3,L.R*(dPhoto/dCanon)*sx);
+        L.bubbles.forEach(b=>{
+          const[gx,gy]=applyH(Hm,b.x,b.y);
+          ctx.beginPath(); ctx.arc(gx*sx,gy*sy,rr,0,7);
+          ctx.strokeStyle='rgba(230,30,30,0.9)'; ctx.lineWidth=Math.max(1.2,rr*0.18); ctx.stroke();
+        });
+      }
+    }catch(ex){}
     if(det.extrapolated){
-      _badge(ctx,'🔶 เห็นจุดล่างครบ — ประมาณมุมบน ผลตรวจได้ แต่แม่นน้อยลง','rgba(180,90,0,0.88)',dw);
+      _badge(ctx,'🔶 ประมาณมุมบน — เช็ควงแดงให้ตรงวงจริง','rgba(180,90,0,0.88)',dw);
     } else {
-      _badge(ctx,'✅ พบจุดอ้างอิงครบ 4 มุม — พร้อมตรวจ','rgba(0,170,75,0.85)',dw);
+      _badge(ctx,'✅ พบจุด 4 มุม — เช็ควงแดงให้ตรงวงจริงก่อนตรวจ','rgba(0,170,75,0.85)',dw);
     }
   } else {
     _badge(ctx,'⚠️ หาจุดไม่ครบ — ถ่ายให้เห็น 4 มุมบนพื้นขาว','rgba(200,40,30,0.85)',dw);
