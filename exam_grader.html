@@ -1062,8 +1062,8 @@ function detectMarkersAt(gray,w,h,markerThr){
     const bw=b.maxx-b.minx+1,bh=b.maxy-b.miny+1,ar=bw/bh,fill=b.area/(bw*bh);
     return b.area>imgArea*0.0003
         && b.area<imgArea*0.018
-        && ar>0.62 && ar<1.60   // ใกล้สี่เหลี่ยม (ตัดปากกาออก)
-        && fill>0.74;            // ทึบสูง (ตัดตัวหนังสือ/เส้นออก)
+        && ar>0.70 && ar<1.42   // ใกล้สี่เหลี่ยมจัตุรัส (ตัดปากกา/เส้นออก)
+        && fill>0.84;            // ทึบเกือบเต็มกรอบ — สี่เหลี่ยมทึบ≈1.0 ตัด "วงกลมระบายดำ" (fill≈0.785) ออก
   });
   if(cand.length<2) return null;
   // เลือก candidate ที่ใกล้มุมภาพที่สุด 1 ตัวต่อมุม
