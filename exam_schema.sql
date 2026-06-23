@@ -17,6 +17,7 @@ create table if not exists exam_subjects (
   num_questions int  not null default 20,
   choices       int  not null default 4,                    -- จำนวนตัวเลือก (ก-ง = 4)
   answer_key    jsonb not null default '{}'::jsonb,         -- เฉลย {"1":"ก","2":"ข",...}
+  question_scores jsonb not null default '{}'::jsonb,       -- คะแนนรายข้อ {"1":1,"2":2.5,...}
   created_at    timestamptz default now(),
   updated_at    timestamptz default now()
 );
@@ -47,8 +48,8 @@ create table if not exists exam_results (
   student_name  text,
   student_no    text,
   room          text,
-  score         int,
-  total         int,
+  score         numeric,
+  total         numeric,
   percent       numeric,
   answers       jsonb,                                       -- คำตอบนักเรียนที่ AI อ่านได้
   graded_at     timestamptz default now()
@@ -56,6 +57,12 @@ create table if not exists exam_results (
 
 alter table exam_results disable row level security;
 create index if not exists idx_exam_results_subject on exam_results(subject_id);
+
+-- อัปเกรดฐานข้อมูลเดิมให้รองรับคะแนนรายข้อและคะแนนทศนิยม
+alter table exam_subjects
+  add column if not exists question_scores jsonb not null default '{}'::jsonb;
+alter table exam_results alter column score type numeric using score::numeric;
+alter table exam_results alter column total type numeric using total::numeric;
 
 -- ============================================================
 -- เสร็จแล้ว ✅  ระบบพร้อมเก็บรายวิชา/เฉลย/คะแนน

@@ -360,7 +360,14 @@ body {
 }
 .key-row:last-child { border-bottom:none; }
 .key-num { width:26px; font-size:13px; font-weight:700; color:var(--text-muted); text-align:right; flex-shrink:0; }
-.key-choices { display:flex; gap:7px; }
+.key-choices { display:flex; gap:7px; flex:1; }
+.key-score-wrap { display:flex; align-items:center; gap:5px; margin-left:auto; color:var(--text-muted); font-size:12px; white-space:nowrap; }
+.key-score {
+  width:66px; padding:8px 7px; border-radius:10px;
+  border:1px solid rgba(22,90,55,0.20); background:rgba(255,255,255,0.72);
+  color:var(--text); font-family:'Sarabun',sans-serif; font-size:14px; text-align:center;
+}
+.key-score:focus { outline:none; border-color:var(--gold); box-shadow:0 0 0 3px rgba(201,168,76,0.14); }
 .key-choice {
   width:44px; height:44px; border-radius:50%;
   border:2px solid rgba(22,90,55,0.20);
@@ -579,6 +586,7 @@ body {
         <div>
           <div class="g-card glass">
             <div class="g-card-title">กรอกเฉลย (ก ข ค ง)</div>
+            <div class="info-box">กำหนดคะแนนของแต่ละข้อได้ ค่าเริ่มต้นข้อละ 1 คะแนน และใช้ทศนิยมได้</div>
             <div class="btn-row" style="margin-bottom:14px">
               <button class="btn btn-ghost btn-sm" onclick="buildKeyGrid()">ตั้งจำนวนข้อ</button>
               <button class="btn btn-ghost btn-sm" onclick="clearKey()">ล้างเฉลย</button>
@@ -765,6 +773,7 @@ function buildKeyGrid() {
   const n = Math.min(parseInt(document.getElementById('f-numq').value)||20, 60);
   const grid = document.getElementById('key-grid');
   const prev = getAnswerKey();
+  const prevScores = getQuestionScores();
   grid.innerHTML = '';
   for (let i = 1; i <= n; i++) {
     const row = document.createElement('div');
@@ -772,7 +781,9 @@ function buildKeyGrid() {
     const btns = CHOICES.map(c =>
       `<button class="key-choice${prev[i]===c?' selected':''}" data-q="${i}" data-c="${c}" onclick="toggleKey(this)" type="button">${c}</button>`
     ).join('');
-    row.innerHTML = `<span class="key-num">${i}</span><div class="key-choices">${btns}</div>`;
+    const score = prevScores[i] ?? 1;
+    row.innerHTML = `<span class="key-num">${i}</span><div class="key-choices">${btns}</div>`
+      + `<label class="key-score-wrap">คะแนน <input class="key-score" data-q="${i}" type="number" min="0" step="0.25" value="${score}"></label>`;
     grid.appendChild(row);
   }
 }
@@ -789,11 +800,25 @@ function getAnswerKey() {
   });
   return key;
 }
+function getQuestionScores() {
+  const scores = {};
+  document.querySelectorAll('#key-grid .key-score').forEach(input => {
+    const score = Number(input.value);
+    scores[parseInt(input.dataset.q)] = Number.isFinite(score) && score >= 0 ? score : 1;
+  });
+  return scores;
+}
 function setAnswerKey(key) {
   for (const q in key) {
     const btn = document.querySelector(`#key-grid .key-choice[data-q="${q}"][data-c="${key[q]}"]`);
     if (btn) { btn.closest('.key-choices').querySelectorAll('.key-choice').forEach(b=>b.classList.remove('selected')); btn.classList.add('selected'); }
   }
+}
+function setQuestionScores(scores) {
+  document.querySelectorAll('#key-grid .key-score').forEach(input => {
+    const score = scores?.[input.dataset.q];
+    input.value = Number.isFinite(Number(score)) && Number(score) >= 0 ? Number(score) : 1;
+  });
 }
 
 // ============ SUBJECTS ============
@@ -823,7 +848,7 @@ function onSelectSubject() {
   document.getElementById('f-numq').value    = s.num_questions||20;
   document.getElementById('f-exam').value    = s.exam_title||'';
   document.getElementById('f-school').value  = s.school_name||'โรงเรียนนายางกลักพิทยาคม';
-  buildKeyGrid(); setAnswerKey(s.answer_key||{});
+  buildKeyGrid(); setAnswerKey(s.answer_key||{}); setQuestionScores(s.question_scores||{});
   document.getElementById('del-btn').style.display=''; subjectMsg('',false);
 }
 function newSubject() {
@@ -832,7 +857,7 @@ function newSubject() {
   document.getElementById('f-numq').value=20;
   document.getElementById('f-school').value='โรงเรียนนายางกลักพิทยาคม';
   document.getElementById('subject-select').value='';
-  buildKeyGrid(); clearKey();
+  buildKeyGrid(); clearKey(); setQuestionScores({});
   document.getElementById('del-btn').style.display='none'; subjectMsg('',false);
 }
 async function saveSubject() {
@@ -845,7 +870,7 @@ async function saveSubject() {
     exam_title:document.getElementById('f-exam').value.trim()||null,
     school_name:document.getElementById('f-school').value.trim()||null,
     num_questions:parseInt(document.getElementById('f-numq').value)||20,
-    choices:4, answer_key:getAnswerKey()
+    choices:4, answer_key:getAnswerKey(), question_scores:getQuestionScores()
   };
   try {
     let res;
@@ -1484,25 +1509,29 @@ function showResult(answers,key,numQ,uncertain){
 }
 function recomputeScore(){
   const key=G.curKey,numQ=G.curNumQ;
-  let correct=0,wrong=0,blank=0; const answers={};
+  const scores=G.gradeSubject?.question_scores||{};
+  let correct=0,earned=0,total=0,wrong=0,blank=0; const answers={};
   for(let i=1;i<=numQ;i++){
     const sel=document.querySelector('.ans-sel[data-q="'+i+'"]');
     const a=sel?sel.value:'-'; answers[i]=a;
-    const ca=key[i];
+    const ca=key[i],weight=Math.max(0,Number(scores[i]??1)||0);
     const row=document.getElementById('qrow-'+i),cell=row.querySelector('.qres');
     if(!ca){row.className='';cell.innerHTML='<span class="badge skip">—</span>';}
-    else if(a==='-'||a==='?'){blank++;row.className='row-wrong';cell.innerHTML='<span class="badge skip">'+(a==='?'?'ไม่ชัด':'ไม่ตอบ')+'</span>';}
-    else if(a===ca){correct++;row.className='row-correct';cell.innerHTML='<span class="badge ok">ถูก</span>';}
-    else{wrong++;row.className='row-wrong';cell.innerHTML='<span class="badge no">ผิด</span>';}
+    else {
+      total+=weight;
+      if(a==='-'||a==='?'){blank++;row.className='row-wrong';cell.innerHTML='<span class="badge skip">'+(a==='?'?'ไม่ชัด':'ไม่ตอบ')+'</span>';}
+      else if(a===ca){correct++;earned+=weight;row.className='row-correct';cell.innerHTML='<span class="badge ok">ถูก +'+formatScore(weight)+'</span>';}
+      else{wrong++;row.className='row-wrong';cell.innerHTML='<span class="badge no">ผิด</span>';}
+    }
   }
-  const total=Object.keys(key).length,pct=total>0?Math.round(correct/total*100):0;
-  document.getElementById('res-score').textContent=correct;
-  document.getElementById('res-total').textContent='จาก '+total+' คะแนน';
+  const pct=total>0?Math.round(earned/total*10000)/100:0;
+  document.getElementById('res-score').textContent=formatScore(earned);
+  document.getElementById('res-total').textContent='จาก '+formatScore(total)+' คะแนน';
   document.getElementById('res-pct').textContent=pct+'%';
   document.getElementById('res-correct').textContent=correct;
   document.getElementById('res-wrong').textContent=wrong;
   document.getElementById('res-blank').textContent=blank;
-  G.lastResult={score:correct,total,percent:pct,answers};
+  G.lastResult={score:earned,total,percent:pct,answers};
   const sb=document.getElementById('save-result-btn');
   sb.textContent='💾 บันทึกคะแนนลงระบบ'; sb.disabled=false;
 }
@@ -1530,6 +1559,7 @@ function showError(msg){
   box.textContent='⚠️ '+msg; box.style.display='block';
 }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function formatScore(n){ return Number.isInteger(Number(n))?String(Number(n)):Number(n).toFixed(2).replace(/0+$/,'').replace(/\.$/,''); }
 
 // ============ INIT ============
 (function init(){
