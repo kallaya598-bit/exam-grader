@@ -8,14 +8,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ตรวจข้อสอบ">
-<link rel="icon" href="/exam-grader/favicon.ico?v=2" sizes="any">
-<link rel="icon" type="image/png" href="/exam-grader/favicon-32.png?v=2" sizes="32x32">
-<link rel="apple-touch-icon" sizes="120x120" href="/exam-grader/apple-touch-icon-120.png?v=2">
-<link rel="apple-touch-icon" sizes="152x152" href="/exam-grader/apple-touch-icon-152.png?v=2">
-<link rel="apple-touch-icon" sizes="167x167" href="/exam-grader/apple-touch-icon-167.png?v=2">
-<link rel="apple-touch-icon" sizes="180x180" href="/exam-grader/apple-touch-icon-180.png?v=2">
-<link rel="apple-touch-icon-precomposed" href="/exam-grader/apple-touch-icon-180.png?v=2">
-<link rel="manifest" href="/exam-grader/manifest.webmanifest?v=2">
+<link rel="icon" href="/exam-grader/favicon.ico?v=3" sizes="any">
+<link rel="icon" type="image/png" href="/exam-grader/favicon-32.png?v=3" sizes="32x32">
+<link rel="apple-touch-icon" sizes="120x120" href="/exam-grader/apple-touch-icon-120.png?v=3">
+<link rel="apple-touch-icon" sizes="152x152" href="/exam-grader/apple-touch-icon-152.png?v=3">
+<link rel="apple-touch-icon" sizes="167x167" href="/exam-grader/apple-touch-icon-167.png?v=3">
+<link rel="apple-touch-icon" sizes="180x180" href="/exam-grader/apple-touch-icon-180.png?v=3">
+<link rel="apple-touch-icon-precomposed" href="/exam-grader/apple-touch-icon-180.png?v=3">
+<link rel="manifest" href="/exam-grader/manifest.webmanifest?v=3">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* ===== iOS 26 LIQUID GLASS DESIGN SYSTEM ===== */
@@ -160,6 +160,7 @@ body {
     inset 0 -2px 4px rgba(12,90,50,0.20);
   animation: logoPulse 3s ease-in-out infinite;
 }
+.logo-emblem img { width:100%; height:100%; display:block; border-radius:22px; object-fit:cover; }
 .logo-emblem .em-th { font-size: 38px; font-weight: 800; color: #ffffff; line-height: 1; }
 .logo-emblem .em-sub { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.85); letter-spacing: 0.5px; }
 @keyframes logoPulse {
@@ -530,6 +531,7 @@ body { background:#f5f5f3; color:#111; }
 }
 .header-inner { max-width:1100px; margin:auto; padding:14px 22px; }
 .h-logo-badge { background:#111; border-radius:9px; box-shadow:none; }
+.h-logo-badge img { width:100%; height:100%; display:block; border-radius:9px; object-fit:cover; }
 .h-title { font-size:18px; font-weight:800; letter-spacing:-.3px; }
 .h-user { color:#777; }
 .btn-logout { background:#fff; border:1px solid #d8d8d5; color:#444; }
@@ -593,8 +595,8 @@ body { background:#f5f5f3; color:#111; }
 .error-box { background:#fff0ee; border-color:#f4c7c3; color:#b42318; }
 
 @media(max-width:760px) {
-  .app-header { position:sticky; }
-  .header-inner { padding:11px 15px; }
+  .app-header { position:sticky; top:0; padding-top:max(env(safe-area-inset-top),8px); backdrop-filter:none; -webkit-backdrop-filter:none; background:#fff; }
+  .header-inner { padding:9px 15px 11px; min-height:58px; }
   .h-title { font-size:15px; }
   .h-user { display:none; }
   .btn-logout { padding:6px 10px; }
@@ -602,9 +604,9 @@ body { background:#f5f5f3; color:#111; }
   .g-card { padding:19px 16px; border-radius:16px; margin-bottom:14px; }
   .row2,.row3 { grid-template-columns:1fr; gap:0; }
   .tab-bar {
-    position:fixed; z-index:100; left:10px; right:10px; bottom:calc(10px + env(safe-area-inset-bottom,0));
+    position:fixed; z-index:100; left:10px; right:10px; top:auto!important; bottom:max(10px,env(safe-area-inset-bottom));
     padding:6px; gap:4px; border:1px solid #d8d8d5; border-radius:18px;
-    box-shadow:0 10px 35px rgba(0,0,0,.14); background:rgba(255,255,255,.97);
+    box-shadow:0 10px 35px rgba(0,0,0,.14); background:#fff; transform:translateZ(0);
   }
   .tab-btn {
     flex:1; min-width:0; padding:10px 4px; border:0; border-radius:12px;
@@ -674,8 +676,8 @@ body { background:#f5f5f3; color:#111; }
       <div class="logo-glow"></div>
       <div class="logo-ring2"></div>
       <div class="logo-ring"></div>
-      <div class="logo-emblem">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="72" height="72" aria-hidden="true">
+      <div class="logo-emblem" style="background-image:url('/exam-grader/icon-192.png?v=3');background-size:cover;background-position:center">
+        <svg style="display:none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="72" height="72" aria-hidden="true">
           <!-- document body -->
           <path d="M18 13 Q18 9 23 9 L60 9 L76 25 L76 89 Q76 93 71 93 L23 93 Q18 93 18 89 Z"
                 fill="rgba(255,255,255,0.18)" stroke="white" stroke-width="4.5" stroke-linejoin="round"/>
@@ -713,8 +715,8 @@ body { background:#f5f5f3; color:#111; }
   <!-- HEADER -->
   <div class="app-header">
     <div class="header-inner">
-      <div class="h-logo-badge">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="22" height="22" aria-hidden="true">
+      <div class="h-logo-badge" style="background-image:url('/exam-grader/icon-192.png?v=3');background-size:cover;background-position:center">
+        <svg style="display:none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="22" height="22" aria-hidden="true">
           <path d="M18 13 Q18 9 23 9 L60 9 L76 25 L76 89 Q76 93 71 93 L23 93 Q18 93 18 89 Z"
                 fill="rgba(255,255,255,0.18)" stroke="white" stroke-width="5" stroke-linejoin="round"/>
           <path d="M60 9 L76 25 L60 25 Z" fill="rgba(255,255,255,0.40)" stroke="white" stroke-width="4" stroke-linejoin="round"/>

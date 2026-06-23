@@ -8,14 +8,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ตรวจข้อสอบ">
-<link rel="icon" href="/exam-grader/favicon.ico?v=2" sizes="any">
-<link rel="icon" type="image/png" href="/exam-grader/favicon-32.png?v=2" sizes="32x32">
-<link rel="apple-touch-icon" sizes="120x120" href="/exam-grader/apple-touch-icon-120.png?v=2">
-<link rel="apple-touch-icon" sizes="152x152" href="/exam-grader/apple-touch-icon-152.png?v=2">
-<link rel="apple-touch-icon" sizes="167x167" href="/exam-grader/apple-touch-icon-167.png?v=2">
-<link rel="apple-touch-icon" sizes="180x180" href="/exam-grader/apple-touch-icon-180.png?v=2">
-<link rel="apple-touch-icon-precomposed" href="/exam-grader/apple-touch-icon-180.png?v=2">
-<link rel="manifest" href="/exam-grader/manifest.webmanifest?v=2">
+<link rel="icon" href="/exam-grader/favicon.ico?v=3" sizes="any">
+<link rel="icon" type="image/png" href="/exam-grader/favicon-32.png?v=3" sizes="32x32">
+<link rel="apple-touch-icon" sizes="120x120" href="/exam-grader/apple-touch-icon-120.png?v=3">
+<link rel="apple-touch-icon" sizes="152x152" href="/exam-grader/apple-touch-icon-152.png?v=3">
+<link rel="apple-touch-icon" sizes="167x167" href="/exam-grader/apple-touch-icon-167.png?v=3">
+<link rel="apple-touch-icon" sizes="180x180" href="/exam-grader/apple-touch-icon-180.png?v=3">
+<link rel="apple-touch-icon-precomposed" href="/exam-grader/apple-touch-icon-180.png?v=3">
+<link rel="manifest" href="/exam-grader/manifest.webmanifest?v=3">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* ===== iOS 26 LIQUID GLASS DESIGN SYSTEM ===== */
@@ -496,6 +496,7 @@ body { background:#f5f5f3; color:#111; }
 .logo-glow,.logo-ring,.logo-ring2 { display:none; }
 .logo-wrap { margin-bottom:20px; }
 .logo-emblem { width:88px; height:88px; border-radius:22px; animation:none; background:#111; box-shadow:none; }
+.logo-emblem img { width:100%; height:100%; display:block; border-radius:22px; object-fit:cover; }
 .login-school { font-size:22px; font-weight:800; letter-spacing:-.5px; }
 .login-sub { color:#777; }
 .login-divider { background:#e8e8e5; }
@@ -506,6 +507,7 @@ body { background:#f5f5f3; color:#111; }
 .app-header { background:rgba(255,255,255,.96); border-bottom:1px solid #dededb; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); box-shadow:none; }
 .header-inner { max-width:1100px; margin:auto; padding:14px 22px; }
 .h-logo-badge { background:#111; border-radius:9px; box-shadow:none; }
+.h-logo-badge img { width:100%; height:100%; display:block; border-radius:9px; object-fit:cover; }
 .h-title { font-size:18px; font-weight:800; letter-spacing:-.3px; }
 .h-user { color:#777; }
 .btn-logout { background:#fff; border:1px solid #d8d8d5; color:#444; }
@@ -550,15 +552,15 @@ body { background:#f5f5f3; color:#111; }
 .note-box { background:#e8f8f0; border-color:#b7ead2; color:#067647; }
 .error-box { background:#fff0ee; border-color:#f4c7c3; color:#b42318; }
 @media(max-width:760px) {
-  .app-header { position:sticky; }
-  .header-inner { padding:11px 15px; }
+  .app-header { position:sticky; top:0; padding-top:max(env(safe-area-inset-top),8px); backdrop-filter:none; -webkit-backdrop-filter:none; background:#fff; }
+  .header-inner { padding:9px 15px 11px; min-height:58px; }
   .h-title { font-size:15px; }
   .h-user { display:none; }
   .btn-logout { padding:6px 10px; }
   .app-content { padding:20px 12px 100px; }
   .g-card { padding:19px 16px; border-radius:16px; margin-bottom:14px; }
   .row2,.row3 { grid-template-columns:1fr; gap:0; }
-  .tab-bar { position:fixed; z-index:100; left:10px; right:10px; bottom:calc(10px + env(safe-area-inset-bottom,0)); padding:6px; gap:4px; border:1px solid #d8d8d5; border-radius:18px; box-shadow:0 10px 35px rgba(0,0,0,.14); background:rgba(255,255,255,.97); }
+  .tab-bar { position:fixed; z-index:100; left:10px; right:10px; top:auto!important; bottom:max(10px,env(safe-area-inset-bottom)); padding:6px; gap:4px; border:1px solid #d8d8d5; border-radius:18px; box-shadow:0 10px 35px rgba(0,0,0,.14); background:#fff; transform:translateZ(0); }
   .tab-btn { flex:1; min-width:0; padding:10px 4px; border:0; border-radius:12px; white-space:normal; font-size:11px; line-height:1.35; }
   .tab-btn.active { background:#111; color:#fff; border:0; }
   .key-choice { width:42px; height:42px; }
@@ -615,10 +617,7 @@ body { background:#f5f5f3; color:#111; }
       <div class="logo-glow"></div>
       <div class="logo-ring2"></div>
       <div class="logo-ring"></div>
-      <div class="logo-emblem">
-        <span class="em-th">นย</span>
-        <span class="em-sub">NAYANGKLAK</span>
-      </div>
+      <div class="logo-emblem"><img src="/exam-grader/icon-192.png?v=3" alt="โลโก้ระบบตรวจข้อสอบ"></div>
     </div>
     <div class="login-school">โรงเรียนนายางกลักพิทยาคม</div>
     <div class="login-sub">ระบบตรวจข้อสอบอัตโนมัติ OMR</div>
@@ -636,7 +635,7 @@ body { background:#f5f5f3; color:#111; }
   <!-- HEADER -->
   <div class="app-header">
     <div class="header-inner">
-      <div class="h-logo-badge">นย</div>
+      <div class="h-logo-badge"><img src="/exam-grader/icon-192.png?v=3" alt=""></div>
       <div class="h-title">ระบบตรวจข้อสอบ</div>
       <div class="h-user" id="hdr-user"></div>
       <button class="btn-logout" onclick="doLogout()">ออกจากระบบ</button>
