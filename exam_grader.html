@@ -602,6 +602,49 @@ body { background:#f5f5f3; color:#111; }
   .key-choice { width:42px; height:42px; }
   .score-num { font-size:58px; }
 }
+
+/* ===== CAMERA-FIRST SCANNER (UI only — OMR engine unchanged) ===== */
+#panel-grade.active { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(320px,.65fr); gap:22px; align-items:start; }
+#panel-grade .grade-meta { grid-column:2; grid-row:1; position:sticky; top:132px; }
+#panel-grade .scanner-card { grid-column:1; grid-row:1 / span 2; background:#101010; border-color:#242424; color:#fff; }
+#panel-grade .scanner-card .g-card-title { color:#fff; }
+#panel-grade .scanner-card .info-box { background:#1b1b1b; border-color:#343434; color:#d0d0d0; }
+#panel-grade .upload-zone {
+  min-height:440px; display:flex; flex-direction:column; justify-content:center; align-items:center;
+  background:#080808; border:2px dashed #3c3c3c; color:#fff; border-radius:20px;
+}
+#panel-grade .upload-zone::before,#panel-grade .upload-zone::after {
+  content:''; position:absolute; width:50px; height:50px; pointer-events:none;
+}
+#panel-grade .upload-zone::before { left:18px; top:18px; border-left:4px solid #19c37d; border-top:4px solid #19c37d; border-radius:8px 0 0 0; }
+#panel-grade .upload-zone::after { right:18px; bottom:18px; border-right:4px solid #19c37d; border-bottom:4px solid #19c37d; border-radius:0 0 8px 0; }
+#panel-grade .upload-zone:hover,#panel-grade .upload-zone.drag { background:#0d1712; border-color:#19c37d; }
+#panel-grade .upload-icon {
+  width:76px; height:76px; display:grid; place-items:center; border-radius:50%;
+  background:#19c37d; color:#07150e; font-size:36px; margin-bottom:18px;
+}
+#panel-grade .upload-zone p { color:#9d9d9d; }
+#panel-grade .upload-zone strong { color:#fff; font-size:17px; }
+#panel-grade #preview-wrap { background:#050505; border-radius:20px; padding:10px; }
+#panel-grade #preview-wrap img { max-height:620px; border:0; border-radius:14px; }
+#panel-grade #preview-name { color:#aaa; }
+#panel-grade #grade-btn { background:#19c37d; color:#07150e; border:0; margin-top:14px; }
+#panel-grade #result-section { grid-column:1 / -1; }
+#panel-grade .score-banner { max-width:420px; margin-left:auto; margin-right:auto; }
+.grade-eyebrow { font-size:12px; font-weight:800; color:#19c37d; letter-spacing:1.4px; margin-bottom:7px; }
+.grade-heading { font-size:28px; line-height:1.2; font-weight:800; letter-spacing:-.6px; margin-bottom:8px; }
+.grade-subheading { color:#777; font-size:14px; margin-bottom:20px; }
+
+@media(max-width:850px) {
+  #panel-grade.active { display:block; }
+  #panel-grade .grade-meta,#panel-grade .scanner-card,#panel-grade #result-section { position:static; }
+  #panel-grade .grade-meta { margin-bottom:14px; }
+  #panel-grade .upload-zone { min-height:390px; }
+}
+@media(max-width:520px) {
+  #panel-grade .upload-zone { min-height:350px; padding:28px 14px; }
+  .grade-heading { font-size:24px; }
+}
 @media print {
   body > *       { display:none!important; }
   #print-area    { display:block!important; position:fixed; inset:0; background:#fff; }
@@ -762,7 +805,10 @@ body { background:#f5f5f3; color:#111; }
 
     <!-- ===== TAB 3: GRADE ===== -->
     <div class="panel" id="panel-grade">
-      <div class="g-card glass">
+      <div class="g-card glass grade-meta">
+        <div class="grade-eyebrow">OMR SCANNER</div>
+        <div class="grade-heading">สแกนกระดาษคำตอบ</div>
+        <div class="grade-subheading">เลือกรายวิชาและนักเรียน ก่อนถ่ายภาพให้เห็นจุดดำครบทั้ง 4 มุม</div>
         <div class="g-card-title">ข้อมูลการตรวจ</div>
         <div class="info-box" id="grade-need" style="display:none">⚠️ ยังไม่ได้เลือกรายวิชา</div>
         <div class="field"><label>รายวิชาที่จะตรวจ</label>
@@ -777,13 +823,13 @@ body { background:#f5f5f3; color:#111; }
         </div>
       </div>
 
-      <div class="g-card glass">
-        <div class="g-card-title">อัปโหลดกระดาษคำตอบ</div>
+      <div class="g-card glass scanner-card">
+        <div class="g-card-title">กล้องตรวจคำตอบ</div>
         <div class="info-box">📸 ถ่ายให้เห็น <b>จุดดำครบทั้ง 4 มุม</b> · วางบนพื้นสว่าง · ไม่เอียงมาก · ระบายให้เข้ม</div>
         <div class="upload-zone" id="drop-zone">
-          <input type="file" id="file-input" accept="image/*" onchange="handleFile(this.files[0])">
+          <input type="file" id="file-input" accept="image/*" capture="environment" onchange="handleFile(this.files[0])">
           <div class="upload-icon">📷</div>
-          <p><strong>คลิกเพื่อถ่าย / เลือกรูป</strong> หรือลากวางที่นี่</p>
+          <p><strong>แตะเพื่อเปิดกล้อง / เลือกรูป</strong></p>
           <p>รองรับ JPG, PNG, HEIC (แปลงให้อัตโนมัติ)</p>
         </div>
         <div id="preview-wrap">
@@ -791,7 +837,7 @@ body { background:#f5f5f3; color:#111; }
           <p id="preview-name"></p>
         </div>
         <button class="btn btn-primary btn-block" id="grade-btn" onclick="gradeExam()" disabled>
-          <span id="btn-text">ตรวจข้อสอบ</span>
+          <span id="btn-text">สแกนและตรวจคำตอบ</span>
         </button>
         <div class="error-box" id="error-box"></div>
       </div>
@@ -1612,9 +1658,9 @@ function gradeExam(){
   img.onload=()=>setTimeout(()=>{
     try{const r=runOMR(img,numQ,G.quad);if(!r.ok)showError('อ่านไม่สำเร็จ: '+r.reason);else showResult(r.answers,key,numQ,r.uncertain);}
     catch(e){showError('เกิดข้อผิดพลาด: '+e.message);}
-    finally{btn.disabled=false;document.getElementById('btn-text').textContent='ตรวจข้อสอบ';}
+    finally{btn.disabled=false;document.getElementById('btn-text').textContent='สแกนและตรวจคำตอบ';}
   },30);
-  img.onerror=()=>{btn.disabled=false;document.getElementById('btn-text').textContent='ตรวจข้อสอบ';showError('โหลดรูปไม่ได้ ลองใหม่');};
+  img.onerror=()=>{btn.disabled=false;document.getElementById('btn-text').textContent='สแกนและตรวจคำตอบ';showError('โหลดรูปไม่ได้ ลองใหม่');};
   img.src='data:image/jpeg;base64,'+G.imageBase64;
 }
 function showResult(answers,key,numQ,uncertain){
