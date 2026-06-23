@@ -664,6 +664,63 @@ body { background:#f5f5f3; color:#111; }
   #print-area    { display:block!important; position:fixed; inset:0; background:#fff; }
   @page          { margin:12mm; }
 }
+
+/* ===== LIVE CAMERA MODAL ===== */
+#camera-modal {
+  position:fixed; inset:0; z-index:300;
+  background:#000; display:none; flex-direction:column;
+  padding-bottom:env(safe-area-inset-bottom,0);
+}
+#cam-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 18px; padding-top:max(env(safe-area-inset-top,0px),12px);
+  background:rgba(0,0,0,0.75); color:#fff; flex-shrink:0;
+}
+#cam-header-title { font-size:15px; font-weight:700; }
+#cam-close-btn {
+  background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.22);
+  color:#fff; padding:7px 16px; border-radius:20px;
+  font-family:'Sarabun',sans-serif; font-size:13px; cursor:pointer;
+}
+#cam-view {
+  flex:1; position:relative; overflow:hidden;
+  display:flex; align-items:center; justify-content:center; min-height:0;
+}
+#cam-video { width:100%; height:100%; object-fit:cover; display:block; }
+#cam-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+/* viewfinder brackets */
+.cam-corner { position:absolute; width:48px; height:48px; pointer-events:none; z-index:2; }
+.cam-corner.tl { top:18px; left:18px; border-top:4px solid #19c37d; border-left:4px solid #19c37d; border-radius:8px 0 0 0; }
+.cam-corner.tr { top:18px; right:18px; border-top:4px solid #19c37d; border-right:4px solid #19c37d; border-radius:0 8px 0 0; }
+.cam-corner.br { bottom:18px; right:18px; border-bottom:4px solid #19c37d; border-right:4px solid #19c37d; border-radius:0 0 8px 0; }
+.cam-corner.bl { bottom:18px; left:18px; border-bottom:4px solid #19c37d; border-left:4px solid #19c37d; border-radius:0 0 0 8px; }
+#cam-status {
+  position:absolute; top:14px; left:50%; transform:translateX(-50%);
+  background:rgba(0,0,0,0.70); color:#fff;
+  padding:6px 16px; border-radius:20px; font-size:13px; font-weight:600;
+  white-space:nowrap; z-index:3; border:1px solid rgba(255,255,255,0.14);
+  transition:background .3s, color .3s;
+}
+#cam-status.found { background:rgba(25,195,125,0.88); color:#04200e; border-color:transparent; }
+#cam-footer {
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  padding:22px 20px; background:rgba(0,0,0,0.85); position:relative;
+}
+#cam-capture-btn {
+  width:70px; height:70px; border-radius:50%;
+  background:#fff; border:5px solid rgba(255,255,255,0.35);
+  box-shadow:0 0 0 5px rgba(255,255,255,0.18);
+  cursor:pointer; font-size:26px; display:flex; align-items:center; justify-content:center;
+  transition:transform .14s;
+}
+#cam-capture-btn:active { transform:scale(0.90); }
+#cam-hint { position:absolute; bottom:6px; left:0; right:0; text-align:center; font-size:11px; color:rgba(255,255,255,0.40); }
+.btn-cam-open {
+  background:#111; border:1.5px solid #333; color:#fff;
+  margin-bottom:10px;
+}
+.btn-cam-open:hover:not(:disabled) { background:#222; }
+.cam-or { text-align:center; font-size:12px; color:#888; margin-bottom:10px; }
 </style>
 </head>
 <body>
@@ -840,6 +897,8 @@ body { background:#f5f5f3; color:#111; }
       <div class="g-card glass scanner-card">
         <div class="g-card-title">กล้องตรวจคำตอบ</div>
         <div class="info-box">📸 ถ่ายให้เห็น <b>จุดดำครบทั้ง 4 มุม</b> · วางบนพื้นสว่าง · ไม่เอียงมาก · ระบายให้เข้ม</div>
+        <button class="btn btn-block btn-cam-open" onclick="openCamera()">📷 เปิดกล้องสด</button>
+        <div class="cam-or">— หรือเลือกรูปจากคลัง —</div>
         <div class="upload-zone" id="drop-zone">
           <input type="file" id="file-input" accept="image/*" capture="environment" onchange="handleFile(this.files[0])">
           <div class="upload-icon">📷</div>
@@ -888,6 +947,27 @@ body { background:#f5f5f3; color:#111; }
 
 <!-- Print area -->
 <div id="print-area"><div id="sheet-print"></div></div>
+
+<!-- ===== LIVE CAMERA MODAL ===== -->
+<div id="camera-modal">
+  <div id="cam-header">
+    <div id="cam-header-title">📷 กล้องสด — วางกระดาษให้เห็น 4 มุม</div>
+    <button id="cam-close-btn" onclick="closeCamera()">✕ ปิด</button>
+  </div>
+  <div id="cam-view">
+    <video id="cam-video" autoplay playsinline muted></video>
+    <canvas id="cam-canvas"></canvas>
+    <div class="cam-corner tl"></div>
+    <div class="cam-corner tr"></div>
+    <div class="cam-corner br"></div>
+    <div class="cam-corner bl"></div>
+    <div id="cam-status">🔍 กำลังหาจุดดำ 4 มุม...</div>
+  </div>
+  <div id="cam-footer">
+    <button id="cam-capture-btn" onclick="captureFrame()">📸</button>
+    <div id="cam-hint">แตะวงกลมเพื่อถ่าย</div>
+  </div>
+</div>
 
 <script>
 // ============ CONFIG ============
@@ -1747,6 +1827,107 @@ function showError(msg){
 }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function formatScore(n){ return Number.isInteger(Number(n))?String(Number(n)):Number(n).toFixed(2).replace(/0+$/,'').replace(/\.$/,''); }
+
+// ============ LIVE CAMERA ============
+let _camStream = null, _camTimer = null;
+
+function openCamera() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    alert('เบราว์เซอร์นี้ไม่รองรับกล้องสด — ใช้ปุ่มเลือกรูปด้านล่างแทนได้ครับ'); return;
+  }
+  const modal = document.getElementById('camera-modal');
+  modal.style.display = 'flex';
+  document.getElementById('cam-status').textContent = '🔍 กำลังเปิดกล้อง...';
+  document.getElementById('cam-status').className = '';
+  navigator.mediaDevices.getUserMedia({
+    video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
+  }).then(stream => {
+    _camStream = stream;
+    const video = document.getElementById('cam-video');
+    video.srcObject = stream;
+    video.play();
+    video.onloadedmetadata = () => {
+      _camTimer = setInterval(() => _detectLive(video), 450);
+    };
+  }).catch(err => {
+    closeCamera();
+    alert('เปิดกล้องไม่ได้: ' + (err.message || err));
+  });
+}
+
+function _detectLive(video) {
+  if (!video.videoWidth || !video.videoHeight) return;
+  const maxDim = 640;
+  const sc = Math.min(1, maxDim / Math.max(video.videoWidth, video.videoHeight));
+  const w = Math.round(video.videoWidth * sc), h = Math.round(video.videoHeight * sc);
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  cv.getContext('2d').drawImage(video, 0, 0, w, h);
+  const img = new Image();
+  img.onload = () => {
+    try {
+      const { gray, w: gw, h: gh } = omrToGray(img);
+      const det = detectMarkers(gray, gw, gh, otsu(gray));
+      const statusEl = document.getElementById('cam-status');
+      const camCv = document.getElementById('cam-canvas');
+      if (det && !det.extrapolated) {
+        statusEl.textContent = '✅ พบจุดมุมครบ — แตะ 📸 เพื่อถ่าย';
+        statusEl.className = 'found';
+        _drawLiveQuad(camCv, video, det.pts, gw, gh);
+      } else {
+        statusEl.textContent = '🔍 กำลังหาจุดดำ 4 มุม...';
+        statusEl.className = '';
+        _clearCamCanvas(camCv);
+      }
+    } catch(e) {}
+  };
+  img.src = cv.toDataURL('image/jpeg', 0.72);
+}
+
+function _drawLiveQuad(canvas, video, pts, gw, gh) {
+  const vw = video.clientWidth, vh = video.clientHeight;
+  const vAspect = video.videoWidth / video.videoHeight;
+  const cAspect = vw / vh;
+  let rw, rh, ox, oy;
+  if (vAspect > cAspect) { rh = vh; rw = vh * vAspect; ox = (vw - rw) / 2; oy = 0; }
+  else                    { rw = vw; rh = vw / vAspect; oy = (vh - rh) / 2; ox = 0; }
+  canvas.width = vw; canvas.height = vh;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, vw, vh);
+  const D = pts.map(p => [ox + p[0] / gw * rw, oy + p[1] / gh * rh]);
+  ctx.strokeStyle = 'rgba(25,195,125,0.95)'; ctx.lineWidth = 3; ctx.setLineDash([8, 5]);
+  ctx.beginPath(); ctx.moveTo(D[0][0], D[0][1]);
+  for (let i = 1; i < 4; i++) ctx.lineTo(D[i][0], D[i][1]);
+  ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+  D.forEach(d => {
+    ctx.beginPath(); ctx.arc(d[0], d[1], 11, 0, 7);
+    ctx.fillStyle = 'rgba(25,195,125,0.9)'; ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke();
+  });
+}
+
+function _clearCamCanvas(canvas) {
+  if (canvas.width) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function captureFrame() {
+  const video = document.getElementById('cam-video');
+  if (!video.videoWidth) return;
+  const cv = document.createElement('canvas');
+  cv.width = video.videoWidth; cv.height = video.videoHeight;
+  cv.getContext('2d').drawImage(video, 0, 0);
+  cv.toBlob(blob => {
+    closeCamera();
+    handleFile(new File([blob], 'camera.jpg', { type: 'image/jpeg' }));
+  }, 'image/jpeg', 0.93);
+}
+
+function closeCamera() {
+  clearInterval(_camTimer); _camTimer = null;
+  if (_camStream) { _camStream.getTracks().forEach(t => t.stop()); _camStream = null; }
+  const modal = document.getElementById('camera-modal');
+  modal.style.display = 'none';
+  _clearCamCanvas(document.getElementById('cam-canvas'));
+}
 
 // ============ INIT ============
 (function init(){
