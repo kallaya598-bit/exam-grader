@@ -659,6 +659,120 @@ body { background:#f5f5f3; color:#111; }
   #panel-grade .upload-zone { min-height:350px; padding:28px 14px; }
   .grade-heading { font-size:24px; }
 }
+
+/* ===== EXAM APP RENOVATION (UI only — OMR engine unchanged) ===== */
+.tab-bar { display:none!important; }
+.header-inner { min-height:74px; }
+.nav-back {
+  border:0; background:transparent; color:#2d6dcc; font:700 17px 'Sarabun',sans-serif;
+  padding:8px 4px; cursor:pointer; white-space:nowrap;
+}
+.nav-icon {
+  width:42px; height:42px; border-radius:50%; border:2px solid #2d6dcc;
+  display:grid; place-items:center; background:#fff; color:#2d6dcc;
+  font:800 28px/1 'Sarabun',sans-serif; cursor:pointer;
+}
+.nav-icon.primary { background:#2d6dcc; color:#fff; border-color:#2d6dcc; }
+#app-title { text-align:center; font-size:24px; letter-spacing:-.6px; }
+.app-content { max-width:980px; padding-top:24px; }
+.exam-home-head {
+  display:flex; align-items:center; gap:18px; padding:10px 2px 20px;
+  border-bottom:1px solid #e4e7ec; margin-bottom:14px;
+}
+.archive-icon {
+  width:48px; height:48px; display:grid; place-items:center; color:#2d6dcc;
+  font-size:34px; line-height:1; border:3px solid #2d6dcc; border-radius:8px;
+}
+.home-title { font-size:30px; font-weight:800; color:#111; letter-spacing:-.8px; }
+.home-sub { color:#667085; font-size:14px; margin-top:2px; }
+.subject-list { background:#fff; border-radius:24px; overflow:hidden; border:1px solid #edf0f3; }
+.subject-card {
+  width:100%; border:0; background:#fff; display:grid; grid-template-columns:74px 1fr auto;
+  gap:18px; align-items:center; padding:18px 22px; text-align:left; cursor:pointer;
+  border-bottom:1px solid #edf0f3; font-family:'Sarabun',sans-serif; color:#111;
+}
+.subject-card:last-child { border-bottom:0; }
+.subject-card:active { background:#f6f9ff; }
+.date-tile {
+  width:62px; min-height:82px; border-radius:8px; background:#eaf3ff; color:#2d6dcc;
+  display:flex; align-items:center; justify-content:center; text-align:center;
+  font-size:20px; font-weight:800; line-height:1.35; white-space:pre-line;
+}
+.subject-card-title { font-size:27px; line-height:1.25; font-weight:800; letter-spacing:-.5px; margin-bottom:8px; }
+.subject-card-meta, .detail-meta {
+  display:flex; gap:18px; align-items:center; flex-wrap:wrap; color:#667085; font-size:19px;
+}
+.subject-card-meta span:not(:last-child), .detail-meta span:not(:last-child) { padding-right:18px; border-right:1px solid #d7dce3; }
+.sync-badge {
+  justify-self:end; align-self:start; background:#eef0f5; color:#5d6673; border-radius:7px;
+  padding:6px 10px; font-size:16px; font-weight:700; white-space:nowrap;
+}
+.empty-state { padding:34px 18px; color:#667085; text-align:center; font-size:18px; }
+.detail-card {
+  display:grid; grid-template-columns:82px 1fr auto; gap:20px; align-items:center;
+  background:#fff; border:1px solid #edf0f3; border-radius:18px; padding:20px 22px;
+  box-shadow:0 6px 18px rgba(16,24,40,.04); margin-bottom:34px;
+}
+.detail-title { font-size:30px; font-weight:800; letter-spacing:-.7px; line-height:1.25; margin-bottom:12px; }
+.management-section { margin:28px 0 40px; }
+.management-section h2 { font-size:31px; letter-spacing:-.7px; margin-bottom:28px; }
+.tool-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:42px 38px; align-items:start; }
+.tool-item {
+  border:0; background:transparent; display:flex; flex-direction:column; align-items:center;
+  gap:13px; min-height:122px; color:#5d6673; cursor:pointer; font-family:'Sarabun',sans-serif;
+}
+.tool-item span {
+  width:72px; height:72px; border-radius:50%; background:#fff; color:#2d6dcc;
+  display:grid; place-items:center; font-size:30px; box-shadow:0 8px 22px rgba(16,24,40,.07);
+}
+.tool-item b { font-size:22px; line-height:1.35; font-weight:600; }
+.tool-item small { font-size:13px; color:#98a2b3; margin-top:-8px; }
+.tool-item:active span { transform:scale(.96); }
+.tool-item.disabled { opacity:.55; cursor:not-allowed; }
+.tool-back { margin-bottom:14px; }
+
+@media(max-width:760px){
+  body { background:#fff; }
+  .bg { background:#fff; }
+  .bg::before,.bg::after { display:none; }
+  .app-header { box-shadow:none; border-bottom:1px solid #d9dee6; }
+  .header-inner { min-height:88px; padding:18px 22px 14px; gap:12px; }
+  .h-logo-badge,.h-user,.btn-logout { display:none; }
+  #app-title { font-size:24px; flex:1; }
+  .nav-icon { width:40px; height:40px; font-size:27px; }
+  #nav-back { font-size:19px; margin-right:4px; }
+  .app-content { padding:22px 0 64px; }
+  #panel-home { padding:0 0 20px; }
+  .exam-home-head { padding:12px 24px 20px; }
+  .home-title { font-size:28px; }
+  .home-sub { display:none; }
+  .subject-list { border-radius:0; border-left:0; border-right:0; }
+  .subject-card { grid-template-columns:58px 1fr; gap:16px; padding:18px 24px; }
+  .subject-card .sync-badge { grid-column:2; justify-self:start; margin-top:-4px; font-size:15px; }
+  .date-tile { width:58px; min-height:76px; font-size:20px; }
+  .subject-card-title { font-size:26px; }
+  .subject-card-meta { font-size:20px; gap:12px; }
+  .subject-card-meta span:not(:last-child) { padding-right:12px; }
+  #panel-detail { padding:0 18px 30px; }
+  .detail-card { grid-template-columns:58px 1fr; gap:16px; padding:18px; margin-top:14px; margin-bottom:34px; }
+  .detail-card .sync-badge { grid-column:2; justify-self:start; }
+  .detail-title { font-size:27px; }
+  .detail-meta { font-size:20px; gap:12px; }
+  .detail-meta span:not(:last-child) { padding-right:12px; }
+  .management-section h2 { font-size:30px; margin-bottom:26px; }
+  .tool-grid { grid-template-columns:repeat(3,1fr); gap:46px 14px; }
+  .tool-item span { width:66px; height:66px; font-size:28px; }
+  .tool-item b { font-size:22px; }
+  .report-grid { gap-top:38px; }
+  .tool-panel { padding:0 12px 30px; }
+}
+
+@media(max-width:430px){
+  .subject-card-title,.detail-title { font-size:24px; }
+  .tool-item b { font-size:19px; }
+  .tool-item span { width:60px; height:60px; }
+}
+
 @media print {
   body > *       { display:none!important; }
   #print-area    { display:block!important; position:fixed; inset:0; background:#fff; }
@@ -784,11 +898,15 @@ body { background:#f5f5f3; color:#111; }
           <polyline points="52,66 63,80 84,51" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      <div class="h-title">ระบบตรวจข้อสอบ <span style="font-size:11px;opacity:0.65;font-weight:600">v6</span></div>
+      <button class="nav-back" id="nav-back" onclick="backHome()" style="display:none">‹ ย้อนกลับ</button>
+      <div class="h-title" id="app-title">การสอบ</div>
       <div class="h-user" id="hdr-user"></div>
+      <button class="nav-icon" id="reload-btn" onclick="loadSubjects()" aria-label="โหลดใหม่">⋯</button>
+      <button class="nav-icon primary" id="add-btn" onclick="addSubjectFlow()" aria-label="เพิ่มรายวิชา">+</button>
       <button class="btn-logout" onclick="doLogout()">ออกจากระบบ</button>
     </div>
-    <div class="tab-bar">
+    <div class="tab-bar" aria-hidden="true">
+      <button class="tab-btn active" data-tab="home" onclick="switchTab('home')">การสอบ</button>
       <button class="tab-btn active" data-tab="subject" onclick="switchTab('subject')">📚 รายวิชา &amp; เฉลย</button>
       <button class="tab-btn"        data-tab="print"   onclick="switchTab('print')">🖨️ พิมพ์กระดาษ</button>
       <button class="tab-btn"        data-tab="grade"   onclick="switchTab('grade')">✅ ตรวจข้อสอบ</button>
@@ -797,8 +915,59 @@ body { background:#f5f5f3; color:#111; }
 
   <div class="app-content">
 
+    <!-- ===== HOME: EXAM LIST ===== -->
+    <div class="panel active" id="panel-home">
+      <div class="exam-home-head">
+        <div class="archive-icon">▱</div>
+        <div>
+          <div class="home-title">เก็บถาวรแล้ว- <span id="subject-count">0</span></div>
+          <div class="home-sub">เลือกรายวิชาเพื่อจัดการเฉลย ตรวจข้อสอบ และพิมพ์แผ่นคำตอบ</div>
+        </div>
+      </div>
+      <div class="subject-list" id="subject-list">
+        <div class="empty-state">กำลังโหลดรายวิชา...</div>
+      </div>
+    </div>
+
+    <!-- ===== DETAIL: SELECTED EXAM DASHBOARD ===== -->
+    <div class="panel" id="panel-detail">
+      <div class="detail-card" id="detail-card">
+        <div class="date-tile" id="detail-date">ก.พ.<br>18</div>
+        <div class="detail-main">
+          <div class="detail-title" id="detail-title">เลือกรายวิชา</div>
+          <div class="detail-meta">
+            <span>❔ <b id="detail-numq">0</b></span>
+            <span>▣ <b id="detail-scanned">0</b></span>
+            <span>👥 <b id="detail-class">-</b></span>
+          </div>
+        </div>
+        <span class="sync-badge">ยังไม่ได้ซิงค์</span>
+      </div>
+
+      <section class="management-section">
+        <h2>การจัดการสอบ</h2>
+        <div class="tool-grid">
+          <button class="tool-item" onclick="openTool('subject')"><span>🔑</span><b>คำตอบหลัก</b></button>
+          <button class="tool-item" onclick="openTool('grade')"><span>▣</span><b>สแกนแผ่นงาน</b></button>
+          <button class="tool-item" onclick="openTool('subject')"><span>⚙️</span><b>การตั้งค่าการสอบ</b></button>
+          <button class="tool-item" onclick="openTool('print')"><span>▤</span><b>แผ่น OMR/ฟอง</b></button>
+          <button class="tool-item" onclick="openTool('print')"><span>💻</span><b>ออกแบบกระดาษคำตอบ</b></button>
+        </div>
+      </section>
+
+      <section class="management-section">
+        <h2>รายงานการสอบ</h2>
+        <div class="tool-grid report-grid">
+          <button class="tool-item disabled" type="button"><span>📄</span><b>ดูรายงาน</b><small>เร็ว ๆ นี้</small></button>
+          <button class="tool-item disabled" type="button"><span>📊</span><b>ดาวน์โหลด Excel</b><small>เร็ว ๆ นี้</small></button>
+          <button class="tool-item disabled" type="button"><span>📈</span><b>การวิเคราะห์</b><small>เร็ว ๆ นี้</small></button>
+        </div>
+      </section>
+    </div>
+
     <!-- ===== TAB 1: SUBJECT & KEY ===== -->
-    <div class="panel active" id="panel-subject">
+    <div class="panel tool-panel" id="panel-subject">
+      <button class="btn btn-ghost btn-sm tool-back" onclick="openToolMenu()">‹ กลับเมนูจัดการสอบ</button>
       <div class="two-col">
         <div>
           <div class="g-card glass">
@@ -850,7 +1019,8 @@ body { background:#f5f5f3; color:#111; }
     </div>
 
     <!-- ===== TAB 2: PRINT ===== -->
-    <div class="panel" id="panel-print">
+    <div class="panel tool-panel" id="panel-print">
+      <button class="btn btn-ghost btn-sm tool-back" onclick="openToolMenu()">‹ กลับเมนูจัดการสอบ</button>
       <div class="g-card glass">
         <div class="g-card-title">ปรับแต่งหัวกระดาษ</div>
         <div class="info-box" id="print-need" style="display:none">⚠️ ยังไม่ได้เลือกรายวิชา — ไปแท็บแรกเพื่อเลือกหรือสร้างก่อน</div>
@@ -875,7 +1045,8 @@ body { background:#f5f5f3; color:#111; }
     </div>
 
     <!-- ===== TAB 3: GRADE ===== -->
-    <div class="panel" id="panel-grade">
+    <div class="panel tool-panel" id="panel-grade">
+      <button class="btn btn-ghost btn-sm tool-back" onclick="openToolMenu()">‹ กลับเมนูจัดการสอบ</button>
       <div class="g-card glass grade-meta">
         <div class="grade-eyebrow">OMR SCANNER</div>
         <div class="grade-heading">สแกนกระดาษคำตอบ</div>
@@ -1024,7 +1195,7 @@ function showApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-screen').style.display  = 'flex';
   document.getElementById('hdr-user').textContent = G.user?.fullname || G.user?.username || '';
-  buildKeyGrid(); loadSubjects();
+  buildKeyGrid(); switchTab('home'); loadSubjects();
 }
 
 ['l-user','l-pass'].forEach(id =>
@@ -1037,6 +1208,91 @@ function switchTab(name) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   if (name === 'print') initPrintTab();
+  updateAppHeader(name);
+}
+
+function updateAppHeader(name){
+  const title = document.getElementById('app-title');
+  const back = document.getElementById('nav-back');
+  const add = document.getElementById('add-btn');
+  const reload = document.getElementById('reload-btn');
+  const inHome = name === 'home';
+  const inDetail = name === 'detail';
+  back.style.display = inHome ? 'none' : '';
+  add.style.display = inHome ? '' : 'none';
+  reload.style.display = inHome ? '' : 'none';
+  title.textContent = inHome ? 'การสอบ' : (inDetail ? 'รายละเอียดการสอบ' : toolTitle(name));
+}
+function toolTitle(name){
+  return name === 'subject' ? 'จัดการข้อสอบ' : name === 'print' ? 'แผ่นกระดาษคำตอบ' : name === 'grade' ? 'ตรวจข้อสอบ' : 'รายละเอียดการสอบ';
+}
+function backHome(){
+  switchTab('home');
+}
+function openToolMenu(){
+  switchTab('detail');
+}
+function addSubjectFlow(){
+  newSubject();
+  switchTab('subject');
+}
+function openTool(name){
+  if(!G.current){ switchTab('home'); return; }
+  if(name === 'grade') {
+    const gradeSelect = document.getElementById('grade-subject');
+    if(gradeSelect) gradeSelect.value = G.current.id || '';
+    onGradeSubject();
+  }
+  if(name === 'print') initPrintTab();
+  switchTab(name);
+}
+function openSubjectDetail(id){
+  const select = document.getElementById('subject-select');
+  if(select) select.value = id;
+  onSelectSubject();
+  const gradeSelect = document.getElementById('grade-subject');
+  if(gradeSelect) gradeSelect.value = id;
+  onGradeSubject();
+  refreshDetailCard();
+  switchTab('detail');
+}
+function refreshDetailCard(){
+  const s = G.current;
+  if(!s) return;
+  document.getElementById('detail-date').innerHTML = dateTileText(s.updated_at).replace('\n','<br>');
+  document.getElementById('detail-title').textContent = s.exam_title || s.subject_name || 'ไม่มีชื่อข้อสอบ';
+  document.getElementById('detail-numq').textContent = s.num_questions || 0;
+  document.getElementById('detail-class').textContent = [s.class_level, s.room].filter(Boolean).join('/') || '-';
+}
+function dateTileText(value){
+  const d = value ? new Date(value) : new Date();
+  const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  if(Number.isNaN(d.getTime())) return 'ก.พ.\n18';
+  return months[d.getMonth()] + '\n' + String(d.getDate()).padStart(2,'0');
+}
+function renderSubjectList(){
+  const list = document.getElementById('subject-list');
+  const count = document.getElementById('subject-count');
+  if(count) count.textContent = G.subjects.length;
+  if(!list) return;
+  if(!G.subjects.length){
+    list.innerHTML = '<div class="empty-state">ยังไม่มีรายวิชา แตะปุ่ม + เพื่อเพิ่มรายวิชาแรก</div>';
+    return;
+  }
+  list.innerHTML = G.subjects.map(s => `
+    <button class="subject-card" type="button" onclick="openSubjectDetail('${String(s.id).replace(/'/g,"\\'")}')">
+      <span class="date-tile">${dateTileText(s.updated_at).replace('\n','<br>')}</span>
+      <span>
+        <span class="subject-card-title">${esc(s.exam_title || s.subject_name || 'ไม่มีชื่อข้อสอบ')}</span>
+        <span class="subject-card-meta">
+          <span>❔ ${s.num_questions || 0}</span>
+          <span>▣ 0</span>
+          <span>👥 ${esc([s.class_level, s.room].filter(Boolean).join('/') || '-')}</span>
+        </span>
+      </span>
+      <span class="sync-badge">ยังไม่ได้ซิงค์</span>
+    </button>
+  `).join('');
 }
 
 // ============ ANSWER KEY — tap-to-select ============
@@ -1102,6 +1358,7 @@ function fillSubjectDropdowns() {
   document.getElementById('grade-subject').innerHTML  = opts;
   if(G.current)      document.getElementById('subject-select').value = G.current.id||'';
   if(G.gradeSubject) document.getElementById('grade-subject').value  = G.gradeSubject.id||'';
+  renderSubjectList();
 }
 function onSelectSubject() {
   const id=document.getElementById('subject-select').value;
@@ -1117,6 +1374,7 @@ function onSelectSubject() {
   document.getElementById('f-school').value  = s.school_name||'';
   buildKeyGrid(); setAnswerKey(s.answer_key||{}); setQuestionScores(s.question_scores||{});
   document.getElementById('del-btn').style.display=''; subjectMsg('',false);
+  refreshDetailCard();
 }
 function newSubject() {
   G.current=null;
@@ -1149,6 +1407,7 @@ async function saveSubject() {
     if(!res.ok) throw new Error('HTTP '+res.status+' '+(await res.text()));
     const saved=(await res.json())[0]; G.current=saved;
     await loadSubjects(); document.getElementById('subject-select').value=saved.id;
+    refreshDetailCard();
     document.getElementById('del-btn').style.display=''; subjectMsg('✅ บันทึกเรียบร้อย',false);
   } catch(e){ subjectMsg('บันทึกไม่สำเร็จ: '+e.message,true); }
 }
