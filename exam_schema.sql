@@ -15,7 +15,7 @@ create table if not exists exam_subjects (
   exam_title    text,                                       -- ชื่อข้อสอบ เช่น สอบกลางภาค 1/2569
   school_name   text default 'โรงเรียนนายางกลักพิทยาคม',
   num_questions int  not null default 20,
-  choices       int  not null default 5,                    -- จำนวนตัวเลือก (ก-จ = 5)
+  choices       int  not null default 4,                    -- จำนวนตัวเลือก (เลือกได้ 4 = ก-ง หรือ 5 = ก-จ)
   answer_key    jsonb not null default '{}'::jsonb,         -- เฉลย {"1":"ก","2":"จ",...}
   question_scores jsonb not null default '{}'::jsonb,       -- คะแนนรายข้อ {"1":1,"2":2.5,...}
   created_at    timestamptz default now(),
