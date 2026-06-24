@@ -831,7 +831,7 @@ body { background:#f5f5f3; color:#111; }
 
         <div>
           <div class="g-card glass">
-            <div class="g-card-title">กรอกเฉลย (ก ข ค ง)</div>
+            <div class="g-card-title">กรอกเฉลย (ก ข ค ง จ)</div>
             <div class="btn-row" style="margin-bottom:14px">
               <button class="btn btn-ghost btn-sm" onclick="buildKeyGrid()">ตั้งจำนวนข้อ</button>
               <button class="btn btn-ghost btn-sm" onclick="clearKey()">ล้างเฉลย</button>
@@ -974,7 +974,7 @@ body { background:#f5f5f3; color:#111; }
 const SB  = 'https://ujajukwmxulayxxxxmpr.supabase.co';
 const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYWp1a3dteHVsYXl4eHh4bXByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxNDc4MDAsImV4cCI6MjA5NTcyMzgwMH0.DbiP5Qelewl0ozjTNn8GpAkjq256bCGusO4irblMVOo';
 const H   = { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' };
-const CHOICES = ['ก','ข','ค','ง'];
+const CHOICES = ['ก','ข','ค','ง','จ'];
 const SHEET_W = 800, SHEET_H = 1130;
 const MK = { size:50, tl:{x:55,y:55}, tr:{x:745,y:55}, br:{x:745,y:1075}, bl:{x:55,y:1075} };
 
@@ -1138,7 +1138,7 @@ async function saveSubject() {
     exam_title:document.getElementById('f-exam').value.trim()||null,
     school_name:document.getElementById('f-school').value.trim()||null,
     num_questions:parseInt(document.getElementById('f-numq').value)||20,
-    choices:4, answer_key:getAnswerKey(), question_scores:getQuestionScores()
+    choices:5, answer_key:getAnswerKey(), question_scores:getQuestionScores()
   };
   try {
     let res;
@@ -1186,9 +1186,9 @@ function omrLayout(numQ) {
     const x0=areaLeft+c*colW;
     const y=areaTop+r*rowH+rowH/2;
     const numX=x0+20, optStart=x0+52;
-    const step=(colW-72)/4;
+    const step=(colW-72)/CHOICES.length;
     const opts=[];
-    for(let k=0;k<4;k++){
+    for(let k=0;k<CHOICES.length;k++){
       const cx=optStart+step*(k+0.5);
       opts.push({label:CHOICES[k],x:cx,y});
       bubbles.push({q:i+1,choice:k,x:cx,y});
@@ -1473,14 +1473,14 @@ function runOMR(img,numQ,manualQuad){
 
   for(let q=1;q<=numQ;q++){
     const m=[];
-    for(let k=0;k<4;k++){
-      const b=L.bubbles[(q-1)*4+k];
+    for(let k=0;k<CHOICES.length;k++){
+      const b=L.bubbles[(q-1)*CHOICES.length+k];
       const[px,py]=applyH(Hm,b.x,b.y);
       m.push(sampleMean(gray,w,h,px,py,sampleR));
     }
     // เทียบสัมพัทธ์: ใช้ paperWhite เป็นฐาน แทนที่จะเอา max ของ 4 วง
     const ref=Math.min(paperWhite, Math.max(...m)+5);
-    let mi=0;for(let k=1;k<4;k++)if(m[k]<m[mi])mi=k;
+    let mi=0;for(let k=1;k<CHOICES.length;k++)if(m[k]<m[mi])mi=k;
     const asc=[...m].sort((a,b)=>a-b);
     const c0=ref-asc[0];   // ความต่างของวงเข้มสุด กับกระดาษ
     const c1=ref-asc[1];   // วงเข้มรองลงมา
@@ -1759,7 +1759,7 @@ function gradeExam(){
 function showResult(answers,key,numQ,uncertain){
   G.curKey=key;G.curNumQ=numQ;
   const tbody=document.getElementById('result-body'); tbody.innerHTML='';
-  const optList=['-','ก','ข','ค','ง','?'];
+  const optList=['-',...CHOICES,'?'];
   for(let i=1;i<=numQ;i++){
     const a=answers[i]||'-',correctAns=key[i]||'—';
     const sel='<select class="ans-sel" data-q="'+i+'" onchange="recomputeScore()">'
