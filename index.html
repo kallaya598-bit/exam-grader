@@ -809,6 +809,14 @@ const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZi
 const H   = { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' };
 const ALL_CHOICES = ['ก','ข','ค','ง','จ'];
 const DEFAULT_CHOICES = 4;
+const TRIAL_EXPIRES_AT = '2026-07-01T23:59:59+07:00';
+const TRIAL_ACCOUNTS = [
+  ['trial01','OMR7-4821'], ['trial02','OMR7-7396'],
+  ['trial03','OMR7-1584'], ['trial04','OMR7-9062'],
+  ['trial05','OMR7-3147'], ['trial06','OMR7-6259'],
+  ['trial07','OMR7-8703'], ['trial08','OMR7-2468'],
+  ['trial09','OMR7-5910'], ['trial10','OMR7-0375']
+].map(([username,password],i)=>({username,password,no:i+1}));
 const SHEET_W = 800, SHEET_H = 1130;
 const MK = { size:50, tl:{x:55,y:55}, tr:{x:745,y:55}, br:{x:745,y:1075}, bl:{x:55,y:1075} };
 
@@ -819,6 +827,19 @@ const G = {
 };
 
 // ============ LOGIN ============
+function getTrialUser(username,password) {
+  const account = TRIAL_ACCOUNTS.find(a => a.username === username.toLowerCase() && a.password === password);
+  if (!account) return null;
+  if (new Date() > new Date(TRIAL_EXPIRES_AT)) throw new Error('บัญชีทดลองหมดอายุแล้ว');
+  return {
+    id: 'trial-' + account.username,
+    username: account.username,
+    fullname: 'ผู้ทดลองใช้งาน ' + String(account.no).padStart(2,'0'),
+    role: 'trial',
+    is_trial: true,
+    expires_at: TRIAL_EXPIRES_AT
+  };
+}
 async function doLogin() {
   const username = document.getElementById('l-user').value.trim();
   const password = document.getElementById('l-pass').value;
@@ -827,6 +848,13 @@ async function doLogin() {
   if (!username || !password) { errEl.textContent = 'กรุณากรอก username และ password'; return; }
   btn.disabled = true; btn.textContent = 'กำลังตรวจสอบ...'; errEl.textContent = '';
   try {
+    const trialUser = getTrialUser(username,password);
+    if (trialUser) {
+      G.user = trialUser;
+      sessionStorage.setItem('exam_user', JSON.stringify(trialUser));
+      showApp();
+      return;
+    }
     const res = await fetch(SB + '/rest/v1/rpc/login', {
       method: 'POST', headers: H,
       body: JSON.stringify({ p_username: username, p_password: password })
@@ -856,7 +884,7 @@ function doLogout() {
 function showApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-screen').style.display  = 'flex';
-  document.getElementById('hdr-user').textContent = G.user?.fullname || G.user?.username || '';
+  document.getElementById('hdr-user').textContent = (G.user?.fullname || G.user?.username || '') + (G.user?.is_trial ? ' · ทดลอง' : '');
   buildKeyGrid(); loadSubjects();
 }
 
@@ -933,7 +961,19 @@ function setQuestionScores(scores) {
 }
 
 // ============ SUBJECTS ============
+function isTrialUser() { return !!G.user?.is_trial; }
+function trialStoreKey(kind) { return 'exam_trial_' + (G.user?.username || 'guest') + '_' + kind; }
+function readTrialStore(kind) {
+  try { return JSON.parse(localStorage.getItem(trialStoreKey(kind)) || '[]'); }
+  catch(e) { return []; }
+}
+function writeTrialStore(kind,rows) { localStorage.setItem(trialStoreKey(kind), JSON.stringify(rows)); }
 async function loadSubjects() {
+  if (isTrialUser()) {
+    G.subjects = readTrialStore('subjects').sort((a,b)=>String(b.updated_at||'').localeCompare(String(a.updated_at||'')));
+    fillSubjectDropdowns();
+    return;
+  }
   try {
     const res = await fetch(SB+'/rest/v1/exam_subjects?select=*&order=updated_at.desc',{headers:H});
     if(!res.ok) throw new Error('HTTP '+res.status);
@@ -988,6 +1028,24 @@ async function saveSubject() {
     choices:currentFormChoices(), answer_key:getAnswerKey(), question_scores:getQuestionScores()
   };
   try {
+    if (isTrialUser()) {
+      const now = new Date().toISOString();
+      const rows = readTrialStore('subjects');
+      let saved;
+      if (G.current?.id) {
+        const idx = rows.findIndex(x => String(x.id) === String(G.current.id));
+        saved = {...(idx >= 0 ? rows[idx] : {}), ...payload, id:G.current.id, updated_at:now};
+        if (idx >= 0) rows[idx] = saved; else rows.push({...saved, created_at:now});
+      } else {
+        saved = {...payload, id:'trial-subject-' + Date.now(), created_at:now, updated_at:now};
+        rows.push(saved);
+      }
+      writeTrialStore('subjects', rows);
+      G.current = saved;
+      await loadSubjects(); document.getElementById('subject-select').value=saved.id;
+      document.getElementById('del-btn').style.display=''; subjectMsg('✅ บันทึกในโหมดทดลองแล้ว',false);
+      return;
+    }
     let res;
     if(G.current?.id)
       res=await fetch(SB+'/rest/v1/exam_subjects?id=eq.'+G.current.id,{method:'PATCH',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(payload)});
@@ -1003,6 +1061,12 @@ async function deleteSubject() {
   if(!G.current?.id) return;
   if(!confirm('ลบรายวิชา "'+G.current.subject_name+'" ?')) return;
   try {
+    if (isTrialUser()) {
+      const rows = readTrialStore('subjects').filter(x => String(x.id) !== String(G.current.id));
+      writeTrialStore('subjects', rows);
+      newSubject(); await loadSubjects(); subjectMsg('ลบแล้ว',false);
+      return;
+    }
     const res=await fetch(SB+'/rest/v1/exam_subjects?id=eq.'+G.current.id,{method:'DELETE',headers:H});
     if(!res.ok) throw new Error('HTTP '+res.status);
     newSubject(); await loadSubjects(); subjectMsg('ลบแล้ว',false);
@@ -1449,6 +1513,13 @@ async function saveResult(){
     percent:G.lastResult.percent, answers:G.lastResult.answers
   };
   try{
+    if (isTrialUser()) {
+      const rows = readTrialStore('results');
+      rows.push({...payload, id:'trial-result-' + Date.now(), graded_at:new Date().toISOString()});
+      writeTrialStore('results', rows);
+      btn.textContent='✅ บันทึกคะแนนแล้ว (ทดลอง)';
+      return;
+    }
     const res=await fetch(SB+'/rest/v1/exam_results',{method:'POST',headers:H,body:JSON.stringify(payload)});
     if(!res.ok)throw new Error('HTTP '+res.status);
     btn.textContent='✅ บันทึกคะแนนแล้ว';
