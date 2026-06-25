@@ -1527,7 +1527,22 @@ function sampleMean(gray,w,h,px,py,rad){
   }
   return tot?sum/tot:255;
 }
-function runOMR(img,numQ,manualQuad,choicesCount = DEFAULT_CHOICES){
+function sampleBubbleMean(gray,w,h,px,py,rad){
+  // ค้นหารอบตำแหน่งฟองเล็กน้อย เผื่อกระดาษบิด/ลากมุมตรงแต่ฟองเหลื่อมจากโมเดล
+  const r=Math.max(2,rad*0.58);
+  const step=Math.max(2,rad*0.42);
+  const offsets=[
+    [0,0],[-step,0],[step,0],[0,-step],[0,step],
+    [-step,-step],[step,-step],[-step,step],[step,step]
+  ];
+  let best=255;
+  offsets.forEach(([ox,oy])=>{
+    const v=sampleMean(gray,w,h,px+ox,py+oy,r);
+    if(v<best)best=v;
+  });
+  return best;
+}
+function runOMR(img,numQ,manualQuad,choicesCount = DEFAULT_CHOICES, layoutOffset = [0,0]){
   const{gray,w,h}=omrToGray(img);
   const thr=otsu(gray);
   let markers;
@@ -1561,31 +1576,41 @@ function runOMR(img,numQ,manualQuad,choicesCount = DEFAULT_CHOICES){
     const m=[];
     for(let k=0;k<choices.length;k++){
       const b=L.bubbles[(q-1)*choices.length+k];
-      const[px,py]=applyH(Hm,b.x,b.y);
-      m.push(sampleMean(gray,w,h,px,py,sampleR));
+      const[px,py]=applyH(Hm,b.x+layoutOffset[0],b.y+layoutOffset[1]);
+      m.push(sampleBubbleMean(gray,w,h,px,py,sampleR));
     }
     // เทียบสัมพัทธ์: ใช้ paperWhite เป็นฐาน แทนที่จะเอา max ของ 4 วง
-    const ref=Math.min(paperWhite, Math.max(...m)+5);
+    const ref=Math.min(paperWhite, Math.max(...m)+8);
     let mi=0;for(let k=1;k<choices.length;k++)if(m[k]<m[mi])mi=k;
     const asc=[...m].sort((a,b)=>a-b);
     const c0=ref-asc[0];   // ความต่างของวงเข้มสุด กับกระดาษ
     const c1=ref-asc[1];   // วงเข้มรองลงมา
-    if(c0<7)answers[q]='-';                               // ไม่ตอบ — ผ่อนให้รับดินสอ/ภาพจางขึ้น
-    else if(c1>0.58*c0&&c1>16){answers[q]='?';uncertain++;}  // ระบาย 2 วง
+    if(c0<5)answers[q]='-';                               // ไม่ตอบ — ผ่อนให้รับดินสอ/ภาพจาง/ฟองเหลื่อมขึ้น
+    else if(c1>0.62*c0&&c1>18){answers[q]='?';uncertain++;}  // ระบาย 2 วง
     else answers[q]=choices[mi];
   }
   const blankCount=Object.values(answers).filter(a=>a==='-').length;
   const markedCount=numQ-blankCount;
   return{ok:true,answers,uncertain,blankCount,markedCount,choicesCount:choices.length};
 }
+function runOMRBestOffset(img,numQ,manualQuad,choicesCount){
+  const offsets=[[0,0],[0,-8],[0,8],[-8,0],[8,0],[0,-14],[0,14],[-14,0],[14,0]];
+  let best=null;
+  for(const off of offsets){
+    const r=runOMR(img,numQ,manualQuad,choicesCount,off);
+    if(!r.ok)return r;
+    if(!best || r.markedCount>best.markedCount)best=r;
+  }
+  return best;
+}
 function chooseBestOMR(img,numQ,manualQuad,preferredChoices,key){
-  const first=runOMR(img,numQ,manualQuad,preferredChoices);
+  const first=runOMRBestOffset(img,numQ,manualQuad,preferredChoices);
   if(!first.ok)return first;
   const hasChoiceJ=Object.values(key||{}).includes('จ');
   const otherChoices=preferredChoices===5?4:5;
   const mostlyBlank=first.blankCount>=Math.max(6,Math.ceil(numQ*0.70));
   if(!mostlyBlank || hasChoiceJ)return first;
-  const second=runOMR(img,numQ,manualQuad,otherChoices);
+  const second=runOMRBestOffset(img,numQ,manualQuad,otherChoices);
   if(!second.ok)return first;
   return second.markedCount>first.markedCount+Math.max(2,Math.ceil(numQ*0.15))?second:first;
 }
