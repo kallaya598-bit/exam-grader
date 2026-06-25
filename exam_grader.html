@@ -1570,11 +1570,24 @@ function runOMR(img,numQ,manualQuad,choicesCount = DEFAULT_CHOICES){
     const asc=[...m].sort((a,b)=>a-b);
     const c0=ref-asc[0];   // ความต่างของวงเข้มสุด กับกระดาษ
     const c1=ref-asc[1];   // วงเข้มรองลงมา
-    if(c0<10)answers[q]='-';                              // ไม่ตอบ (< 10 gray levels)
-    else if(c1>0.55*c0&&c1>14){answers[q]='?';uncertain++;}  // ระบาย 2 วง
+    if(c0<7)answers[q]='-';                               // ไม่ตอบ — ผ่อนให้รับดินสอ/ภาพจางขึ้น
+    else if(c1>0.58*c0&&c1>16){answers[q]='?';uncertain++;}  // ระบาย 2 วง
     else answers[q]=choices[mi];
   }
-  return{ok:true,answers,uncertain};
+  const blankCount=Object.values(answers).filter(a=>a==='-').length;
+  const markedCount=numQ-blankCount;
+  return{ok:true,answers,uncertain,blankCount,markedCount,choicesCount:choices.length};
+}
+function chooseBestOMR(img,numQ,manualQuad,preferredChoices,key){
+  const first=runOMR(img,numQ,manualQuad,preferredChoices);
+  if(!first.ok)return first;
+  const hasChoiceJ=Object.values(key||{}).includes('จ');
+  const otherChoices=preferredChoices===5?4:5;
+  const mostlyBlank=first.blankCount>=Math.max(6,Math.ceil(numQ*0.70));
+  if(!mostlyBlank || hasChoiceJ)return first;
+  const second=runOMR(img,numQ,manualQuad,otherChoices);
+  if(!second.ok)return first;
+  return second.markedCount>first.markedCount+Math.max(2,Math.ceil(numQ*0.15))?second:first;
 }
 
 // ============ FILE + MARKER OVERLAY ============
@@ -1849,17 +1862,17 @@ function gradeExam(){
   showError(''); document.getElementById('result-section').style.display='none';
   const img=new Image();
   img.onload=()=>setTimeout(()=>{
-    try{const r=runOMR(img,numQ,G.quad,choices);if(!r.ok)showError('อ่านไม่สำเร็จ: '+r.reason);else showResult(r.answers,key,numQ,r.uncertain);}
+    try{const r=chooseBestOMR(img,numQ,G.quad,choices,key);if(!r.ok)showError('อ่านไม่สำเร็จ: '+r.reason);else showResult(r.answers,key,numQ,r.uncertain,r.choicesCount);}
     catch(e){showError('เกิดข้อผิดพลาด: '+e.message);}
     finally{btn.disabled=false;document.getElementById('btn-text').textContent='สแกนและตรวจคำตอบ';}
   },30);
   img.onerror=()=>{btn.disabled=false;document.getElementById('btn-text').textContent='สแกนและตรวจคำตอบ';showError('โหลดรูปไม่ได้ ลองใหม่');};
   img.src='data:image/jpeg;base64,'+G.imageBase64;
 }
-function showResult(answers,key,numQ,uncertain){
-  G.curKey=key;G.curNumQ=numQ;
+function showResult(answers,key,numQ,uncertain,choicesCount){
+  G.curKey=key;G.curNumQ=numQ;G.curChoices=choiceCount(choicesCount||G.gradeSubject?.choices);
   const tbody=document.getElementById('result-body'); tbody.innerHTML='';
-  const optList=['-',...choicesForCount(G.gradeSubject?.choices),'?'];
+  const optList=['-',...choicesForCount(G.curChoices),'?'];
   for(let i=1;i<=numQ;i++){
     const a=answers[i]||'-',correctAns=key[i]||'—';
     const sel='<select class="ans-sel" data-q="'+i+'" onchange="recomputeScore()">'
@@ -1867,7 +1880,8 @@ function showResult(answers,key,numQ,uncertain){
     tbody.innerHTML+='<tr id="qrow-'+i+'"><td><strong>'+i+'</strong></td><td>'+sel+'</td><td>'+correctAns+'</td><td class="qres"></td></tr>';
   }
   const noteEl=document.getElementById('ai-note');
-  noteEl.innerHTML='📝 ระบบอ่านด้วย OMR'+(uncertain?' — มี <b>'+uncertain+'</b> ข้อที่ไม่ชัด (ตรวจสอบวงรอบ ? ด้านบน)':'')
+  const choiceNote=G.curChoices!==choiceCount(G.gradeSubject?.choices)?' — ระบบปรับเป็น <b>'+G.curChoices+' ตัวเลือก</b> ให้อัตโนมัติ':'';
+  noteEl.innerHTML='📝 ระบบอ่านด้วย OMR'+choiceNote+(uncertain?' — มี <b>'+uncertain+'</b> ข้อที่ไม่ชัด (ตรวจสอบวงรอบ ? ด้านบน)':'')
     +'<br>โปรดตรวจทานคำตอบ แก้ในช่องเลือกได้ทันที คะแนนปรับให้อัตโนมัติ';
   noteEl.style.display='block';
   document.getElementById('result-section').style.display='block';
