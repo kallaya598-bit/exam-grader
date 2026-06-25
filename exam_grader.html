@@ -1604,10 +1604,19 @@ function runOMR(img,numQ,manualQuad,choicesCount = DEFAULT_CHOICES, layoutOffset
       fills.push(sampleBubbleFill(gray,w,h,px,py,bubbleR));
     }
     let mi=0;for(let k=1;k<choices.length;k++)if(fills[k].score>fills[mi].score)mi=k;
+    let darkMi=0;for(let k=1;k<choices.length;k++)if(fills[k].inner<fills[darkMi].inner)darkMi=k;
+    const innerSorted=fills.map(f=>f.inner).sort((a,b)=>a-b);
+    const innerGap=(innerSorted[1]??innerSorted[0])-innerSorted[0];
+    // ถ้าช่องหนึ่งไส้ในมืดกว่าช่องอื่นชัด ให้เชื่อ "ความมืดในฟอง" มากกว่า score รอบฟอง
+    if(darkMi!==mi && innerGap>3 && fills[darkMi].score>=fills[mi].score*0.35) mi=darkMi;
     const scores=fills.map(f=>f.score).sort((a,b)=>b-a);
-    const bestScore=scores[0], secondScore=scores[1]??-999, best=fills[mi];
-    if(best.ratio<0.055 && best.darkGap<10)answers[q]='-';
-    else if(secondScore>0.68*bestScore && secondScore>9){answers[q]='?';uncertain++;}  // ระบาย 2 วง/ไม่ชัด
+    const best=fills[mi], bestScore=best.score, secondScore=scores[1]??-999;
+    const localBg=medianGray(fills.map(f=>f.bg));
+    const localInner=medianGray(fills.map(f=>f.inner));
+    const localDark=Math.max(best.darkGap, localBg-best.inner, localInner-best.inner);
+    const isMarked=best.ratio>=0.018 || localDark>=4 || innerGap>=4 || bestScore>=3;
+    if(!isMarked)answers[q]='-';
+    else if(secondScore>0.82*bestScore && secondScore>12 && innerGap<4){answers[q]='?';uncertain++;}  // ระบาย 2 วง/ไม่ชัด
     else answers[q]=choices[mi];
   }
   const blankCount=Object.values(answers).filter(a=>a==='-').length;
