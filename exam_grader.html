@@ -784,7 +784,7 @@ body { background:#f5f5f3; color:#111; }
           <polyline points="52,66 63,80 84,51" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      <div class="h-title">ระบบตรวจข้อสอบ <span style="font-size:11px;opacity:0.65;font-weight:600">v7</span></div>
+      <div class="h-title">ระบบตรวจข้อสอบ <span style="font-size:11px;opacity:0.65;font-weight:600">v8</span></div>
       <div class="h-user" id="hdr-user"></div>
       <button class="btn-logout" onclick="doLogout()">ออกจากระบบ</button>
     </div>
@@ -1528,42 +1528,33 @@ function sampleMean(gray,w,h,px,py,rad){
   return tot?sum/tot:255;
 }
 function sampleBubbleFill(gray,w,h,px,py,rad){
-  // รีเซ็ตหลักอ่าน OMR ให้เรียบและแม่น:
-  // วัด "กลางฟอง" เป็นหลัก ไม่เอาขอบวง/ตัวอักษร/พื้นหลังรอบนอกมาปนคะแนน
-  // เพราะภาพจริงที่ผู้ใช้ส่งมา พิกัดฟองถูกแล้ว แต่สูตรเดิมซับซ้อนเกินจนเลือกผิดช้อย
-  const innerR=Math.max(3,rad*0.48);
+  // อ่าน "กลางฟองตรง ๆ" เท่านั้น
+  // ห้ามสุ่มขยับไปซ้าย/ขวา/บน/ล่าง เพราะจากภาพจริงที่ทดสอบแล้ว
+  // การขยับอาจไปโดนขอบวง ตัวอักษร หรือเงา ทำให้อ่านคนละช้อย
+  const innerR=Math.max(3,rad*0.46);
   const bgIn=Math.max(innerR+2,rad*1.28);
   const bgOut=Math.max(bgIn+2,rad*1.85);
-  const step=Math.max(1,rad*0.18);
-  const offsets=[
-    [0,0],[-step,0],[step,0],[0,-step],[0,step]
-  ];
-  let best={score:-999,inner:255,bg:255,ratio:0,darkGap:0,p10:255};
-  offsets.forEach(([ox,oy])=>{
-    const innerVals=[], bgVals=[];
-    const rMax=Math.ceil(bgOut);
-    for(let dy=-rMax;dy<=rMax;dy++) for(let dx=-rMax;dx<=rMax;dx++){
-      const d2=dx*dx+dy*dy;
-      const x=(px+ox+dx)|0,y=(py+oy+dy)|0;
-      if(x<0||y<0||x>=w||y>=h)continue;
-      const v=gray[y*w+x];
-      if(d2<=innerR*innerR)innerVals.push(v);
-      else if(d2>=bgIn*bgIn && d2<=bgOut*bgOut)bgVals.push(v);
-    }
-    if(!innerVals.length)return;
-    const innerMean=innerVals.reduce((a,b)=>a+b,0)/innerVals.length;
-    innerVals.sort((a,b)=>a-b);
-    const bg=medianGray(bgVals.length?bgVals:innerVals);
-    const p10=innerVals[Math.max(0,Math.floor(innerVals.length*0.10))];
-    const darkThr=Math.min(bg-18,175);
-    const darkCount=innerVals.filter(v=>v<darkThr).length;
-    const ratio=darkCount/innerVals.length;
-    const darkGap=bg-innerMean;
-    // ให้คะแนนจากความมืดของกลางฟองเป็นหลัก p10 ช่วยกรณีระบายไม่เต็มวงแต่มีแกนเข้มชัด
-    const score=Math.max(0,darkGap) + Math.max(0,bg-p10)*0.35 + ratio*18;
-    if(score>best.score)best={score,inner:innerMean,bg,ratio,darkGap,p10};
-  });
-  return best;
+  const innerVals=[], bgVals=[];
+  const rMax=Math.ceil(bgOut);
+  for(let dy=-rMax;dy<=rMax;dy++) for(let dx=-rMax;dx<=rMax;dx++){
+    const d2=dx*dx+dy*dy;
+    const x=(px+dx)|0,y=(py+dy)|0;
+    if(x<0||y<0||x>=w||y>=h)continue;
+    const v=gray[y*w+x];
+    if(d2<=innerR*innerR)innerVals.push(v);
+    else if(d2>=bgIn*bgIn && d2<=bgOut*bgOut)bgVals.push(v);
+  }
+  if(!innerVals.length)return{score:0,inner:255,bg:255,ratio:0,darkGap:0,p10:255};
+  const innerMean=innerVals.reduce((a,b)=>a+b,0)/innerVals.length;
+  innerVals.sort((a,b)=>a-b);
+  const bg=medianGray(bgVals.length?bgVals:innerVals);
+  const p10=innerVals[Math.max(0,Math.floor(innerVals.length*0.10))];
+  const darkThr=Math.min(bg-18,175);
+  const darkCount=innerVals.filter(v=>v<darkThr).length;
+  const ratio=darkCount/innerVals.length;
+  const darkGap=bg-innerMean;
+  const score=Math.max(0,darkGap) + Math.max(0,bg-p10)*0.25 + ratio*12;
+  return{score,inner:innerMean,bg,ratio,darkGap,p10};
 }
 function medianGray(vals){
   if(!vals.length)return 255;
@@ -1609,9 +1600,9 @@ function runOMR(img,numQ,manualQuad,choicesCount = DEFAULT_CHOICES, layoutOffset
     const scoreGap=best.score-(ranked[1]?.f.score??0);
 
     // เกณฑ์จากภาพจริง: ฟองที่ระบายมี gap หลักสิบถึงร้อย ส่วนฟองว่างต่างกันน้อย
-    const strong=innerGap>=16 || localDark>=24 || best.score>=24;
-    const weak=innerGap>=10 || localDark>=16 || best.score>=16 || best.ratio>=0.05;
-    const ambiguous=innerGap<10 && Math.abs(scoreGap)<8;
+    const strong=innerGap>=14 || localDark>=22 || best.score>=22;
+    const weak=innerGap>=7 || localDark>=12 || best.score>=12 || best.ratio>=0.04;
+    const ambiguous=innerGap<7 && Math.abs(scoreGap)<6;
     if(!weak)answers[q]='-';
     else if(!strong || ambiguous){answers[q]=choices[mi];uncertain++;}
     else answers[q]=choices[mi];
