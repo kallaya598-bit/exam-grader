@@ -16,6 +16,11 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/exam-grader/apple-touch-icon-180.png?v=3">
 <link rel="apple-touch-icon-precomposed" href="/exam-grader/apple-touch-icon-180.png?v=3">
 <link rel="manifest" href="/exam-grader/manifest.webmanifest?v=3">
+<script>
+if (location.pathname.endsWith('/exam-grader/') || location.pathname.endsWith('/exam-grader/index.html')) {
+  location.replace('/exam-grader/exam_grader.html' + location.search + location.hash);
+}
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* ===== iOS 26 LIQUID GLASS DESIGN SYSTEM ===== */

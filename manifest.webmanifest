@@ -3,7 +3,7 @@
   "short_name": "ตรวจข้อสอบ",
   "description": "ระบบตรวจข้อสอบปรนัย OMR โรงเรียนนายางกลักพิทยาคม",
   "id": "/exam-grader/",
-  "start_url": "/exam-grader/",
+  "start_url": "/exam-grader/exam_grader.html?v=dragfix",
   "scope": "/exam-grader/",
   "display": "standalone",
   "background_color": "#f5f5f3",
