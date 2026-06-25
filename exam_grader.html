@@ -1527,17 +1527,20 @@ function sampleMean(gray,w,h,px,py,rad){
   }
   return tot?sum/tot:255;
 }
-function sampleBubbleMean(gray,w,h,px,py,rad){
-  // ค้นหารอบตำแหน่งฟองแบบแคบ ๆ เท่านั้น กันข้ามไปอ่านฟองข้างเคียง
-  const r=Math.max(2,rad*0.70);
-  const step=Math.max(1.5,rad*0.22);
+function sampleBubbleFill(gray,w,h,px,py,rad){
+  // อ่านเฉพาะไส้ในฟอง ไม่รวมเส้นขอบวงพิมพ์ที่มีทุกตัวเลือก
+  const innerR=Math.max(2,rad*0.38);
+  const outerR=Math.max(innerR+2,rad*0.88);
+  const step=Math.max(1.2,rad*0.16);
   const offsets=[
     [0,0],[-step,0],[step,0],[0,-step],[0,step]
   ];
-  let best=255;
+  let best={score:-999,inner:255,outer:255};
   offsets.forEach(([ox,oy])=>{
-    const v=sampleMean(gray,w,h,px+ox,py+oy,r);
-    if(v<best)best=v;
+    const inner=sampleMean(gray,w,h,px+ox,py+oy,innerR);
+    const outer=sampleMean(gray,w,h,px+ox,py+oy,outerR);
+    const score=outer-inner; // ยิ่งมาก = ข้างในฟองมืดกว่าพื้น/ขอบรอบ ๆ มาก = ระบายจริง
+    if(score>best.score)best={score,inner,outer};
   });
   return best;
 }
@@ -1572,20 +1575,18 @@ function runOMR(img,numQ,manualQuad,choicesCount = DEFAULT_CHOICES, layoutOffset
   const paperWhite=Math.max(...paperSamples);  // ค่าขาวสุดของกระดาษ
 
   for(let q=1;q<=numQ;q++){
-    const m=[];
+    const fills=[];
     for(let k=0;k<choices.length;k++){
       const b=L.bubbles[(q-1)*choices.length+k];
       const[px,py]=applyH(Hm,b.x+layoutOffset[0],b.y+layoutOffset[1]);
-      m.push(sampleBubbleMean(gray,w,h,px,py,sampleR));
+      fills.push(sampleBubbleFill(gray,w,h,px,py,sampleR));
     }
-    // เทียบสัมพัทธ์: ใช้ paperWhite เป็นฐาน แทนที่จะเอา max ของ 4 วง
-    const ref=Math.min(paperWhite, Math.max(...m)+8);
-    let mi=0;for(let k=1;k<choices.length;k++)if(m[k]<m[mi])mi=k;
-    const asc=[...m].sort((a,b)=>a-b);
-    const c0=ref-asc[0];   // ความต่างของวงเข้มสุด กับกระดาษ
-    const c1=ref-asc[1];   // วงเข้มรองลงมา
-    if(c0<5)answers[q]='-';                               // ไม่ตอบ — ผ่อนให้รับดินสอ/ภาพจาง/ฟองเหลื่อมขึ้น
-    else if(c1>0.62*c0&&c1>18){answers[q]='?';uncertain++;}  // ระบาย 2 วง
+    let mi=0;for(let k=1;k<choices.length;k++)if(fills[k].score>fills[mi].score)mi=k;
+    const scores=fills.map(f=>f.score).sort((a,b)=>b-a);
+    const bestScore=scores[0], secondScore=scores[1]??-999;
+    const absoluteDark=paperWhite-fills[mi].inner; // กันกรณีพื้น/เงาทำให้ score หลอก
+    if(bestScore<4 || absoluteDark<12)answers[q]='-';
+    else if(secondScore>0.72*bestScore && secondScore>5){answers[q]='?';uncertain++;}  // ระบาย 2 วง/ไม่ชัด
     else answers[q]=choices[mi];
   }
   const blankCount=Object.values(answers).filter(a=>a==='-').length;
