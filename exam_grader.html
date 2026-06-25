@@ -1611,12 +1611,14 @@ function runOMR(img,numQ,manualQuad,choicesCount = DEFAULT_CHOICES, layoutOffset
     if(darkMi!==mi && innerGap>3 && fills[darkMi].score>=fills[mi].score*0.35) mi=darkMi;
     const scores=fills.map(f=>f.score).sort((a,b)=>b-a);
     const best=fills[mi], bestScore=best.score, secondScore=scores[1]??-999;
+    const scoreGap=bestScore-secondScore;
     const localBg=medianGray(fills.map(f=>f.bg));
     const localInner=medianGray(fills.map(f=>f.inner));
     const localDark=Math.max(best.darkGap, localBg-best.inner, localInner-best.inner);
-    const isMarked=best.ratio>=0.018 || localDark>=4 || innerGap>=4 || bestScore>=3;
-    if(!isMarked)answers[q]='-';
-    else if(secondScore>0.82*bestScore && secondScore>12 && innerGap<4){answers[q]='?';uncertain++;}  // ระบาย 2 วง/ไม่ชัด
+    const isMarked=best.ratio>=0.010 || localDark>=2.5 || innerGap>=2.2 || bestScore>=1.8 || scoreGap>=1.8;
+    const weakMarked=best.ratio>=0.006 || localDark>=1.4 || innerGap>=1.2 || bestScore>=1.0 || scoreGap>=1.0;
+    if(!weakMarked)answers[q]='-';
+    else if(!isMarked || (secondScore>0.88*bestScore && secondScore>10 && innerGap<2.2)){answers[q]=choices[mi];uncertain++;}  // อ่านได้แต่ไม่มั่นใจ
     else answers[q]=choices[mi];
   }
   const blankCount=Object.values(answers).filter(a=>a==='-').length;
