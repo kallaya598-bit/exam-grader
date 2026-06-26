@@ -1365,6 +1365,7 @@ function runOMR(img,numQ,choicesCount = DEFAULT_CHOICES){
     });
     debug[q]={selected:answers[q],status,paper:ref,bubbles};
   }
+  debug._imageW=w; debug._imageH=h;
   return{ok:true,answers,uncertain,debug};
 }
 
@@ -1391,7 +1392,7 @@ function handleFile(file){
       // ตรวจหา marker และแสดง overlay หลัง img render
       prevImg.onload=()=>setTimeout(()=>{
         try{
-          const{gray,w:gw,h:gh}=omrToGray(img);
+          const{gray,w:gw,h:gh}=omrToGray(prevImg);
           const thr=otsu(gray);
           const markers=detectMarkers(gray,gw,gh,thr);
           showMarkerOverlay(prevImg,markers,gw,gh);
@@ -1532,6 +1533,7 @@ function gradeExam(){
 function showResult(answers,key,numQ,uncertain,debug){
   G.curKey=key;G.curNumQ=numQ;
   G.omrDebug=debug||null;
+  if(debug&&debug._imageW&&debug._imageH){ G.grayW=debug._imageW; G.grayH=debug._imageH; }
   showOMRReviewOverlay(document.getElementById('preview-img'),G.omrDebug);
   const tbody=document.getElementById('result-body'); tbody.innerHTML='';
   const optList=['-',...choicesForCount(G.gradeSubject?.choices),'?'];

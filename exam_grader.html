@@ -1622,6 +1622,7 @@ function runOMR(img,numQ,manualQuad,choicesCount=DEFAULT_CHOICES){
     debug[q]={selected:answers[q],status,paper,bubbles};
   }
   const blankCount=Object.values(answers).filter(a=>a==='-').length;
+  debug._imageW=w; debug._imageH=h;
   return{ok:true,answers,uncertain,blankCount,markedCount:numQ-blankCount,choicesCount:choices.length,debug};
 }
 
@@ -1913,6 +1914,7 @@ function gradeExam(){
 function showResult(answers,key,numQ,uncertain,choicesCount,debug){
   G.curKey=key;G.curNumQ=numQ;G.curChoices=choiceCount(choicesCount||G.gradeSubject?.choices);
   G.omrDebug=debug||null;
+  if(debug&&debug._imageW&&debug._imageH){ G.grayW=debug._imageW; G.grayH=debug._imageH; }
   drawAdjustOverlay(document.getElementById('preview-img'));
   const tbody=document.getElementById('result-body'); tbody.innerHTML='';
   const optList=['-',...choicesForCount(G.curChoices),'?'];
