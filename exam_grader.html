@@ -784,7 +784,7 @@ body { background:#f5f5f3; color:#111; }
           <polyline points="52,66 63,80 84,51" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      <div class="h-title">ระบบตรวจข้อสอบ <span style="font-size:11px;opacity:0.65;font-weight:600">v8</span></div>
+      <div class="h-title">ระบบตรวจข้อสอบ <span style="font-size:11px;opacity:0.65;font-weight:600">v9</span></div>
       <div class="h-user" id="hdr-user"></div>
       <button class="btn-logout" onclick="doLogout()">ออกจากระบบ</button>
     </div>
@@ -1527,89 +1527,86 @@ function sampleMean(gray,w,h,px,py,rad){
   }
   return tot?sum/tot:255;
 }
-function sampleBubbleFill(gray,w,h,px,py,rad){
-  // อ่านกลางฟองตรง ๆ (ไม่ขยับออฟเซ็ต เพื่อไม่ไปโดนวงข้างเคียง)
-  // innerR ใหญ่พอ (0.54*rad) เพื่อจับหมึก/ดินสอที่ไม่ได้ระบายถึงกึ่งกลางพอดี
-  const innerR=Math.max(3,rad*0.54);
-  const bgIn=Math.max(innerR+2,rad*1.15);
-  const bgOut=Math.max(bgIn+2,rad*1.80);
-  const innerVals=[], bgVals=[];
-  const rMax=Math.ceil(bgOut);
-  for(let dy=-rMax;dy<=rMax;dy++) for(let dx=-rMax;dx<=rMax;dx++){
-    const d2=dx*dx+dy*dy;
-    const x=(px+dx)|0,y=(py+dy)|0;
-    if(x<0||y<0||x>=w||y>=h)continue;
-    const v=gray[y*w+x];
-    if(d2<=innerR*innerR)innerVals.push(v);
-    else if(d2>=bgIn*bgIn && d2<=bgOut*bgOut)bgVals.push(v);
+// ============ OMR ENGINE v9 — CLEAN REWRITE ============
+// หลักการ: วัดค่าสว่างเฉลี่ยกลางฟองแต่ละวง แล้วเปรียบเทียบสัมพัทธ์ภายในข้อเดียวกัน
+// paper = ฟองสว่างสุดในข้อ (= กระดาษขาว ไม่ระบาย)
+// c0    = paper − ฟองมืดสุด  (= ความมืดของฟองที่ระบาย)
+// c1    = paper − ฟองมืดรอง
+// c0 < DARK_MIN          → ไม่ตอบ (ไม่มีฟองไหนมืดพอ)
+// c1 > AMBIG * c0        → ไม่ชัด (ระบาย 2 วง หรือดินสอหนักมาก)
+// else                   → ตอบ = ฟองมืดสุด
+const DARK_MIN = 18;   // ต่ำกว่านี้ถือว่าไม่ระบาย (ห่าง paper แค่ 7%)
+const AMBIG    = 0.55; // ถ้าฟองรองมืด > 55% ของแชมป์ = ไม่ชัด
+
+function sampleBubble(gray,w,h,cx,cy,r){
+  // ค่าสว่างเฉลี่ยในวงกลมรัศมี r จุดศูนย์กลาง (cx,cy)
+  const ri=Math.max(2,r*0.55), ri2=ri*ri;
+  let sum=0,cnt=0;
+  for(let dy=-Math.ceil(ri);dy<=Math.ceil(ri);dy++){
+    for(let dx=-Math.ceil(ri);dx<=Math.ceil(ri);dx++){
+      if(dx*dx+dy*dy>ri2)continue;
+      const x=(cx+dx)|0,y=(cy+dy)|0;
+      if(x<0||y<0||x>=w||y>=h)continue;
+      sum+=gray[y*w+x]; cnt++;
+    }
   }
-  if(!innerVals.length)return{score:0,inner:255,bg:255,ratio:0,darkGap:0};
-  const innerMean=innerVals.reduce((a,b)=>a+b,0)/innerVals.length;
-  const bg=medianGray(bgVals.length?bgVals:innerVals);
-  const darkThr=Math.min(bg-16,190);
-  const darkCount=innerVals.filter(v=>v<darkThr).length;
-  const ratio=darkCount/innerVals.length;
-  const darkGap=bg-innerMean;
-  const score=ratio*100 + Math.max(0,darkGap)*1.35;
-  return{score,inner:innerMean,bg,ratio,darkGap};
+  return cnt?sum/cnt:255;
 }
-function medianGray(vals){
-  if(!vals.length)return 255;
-  vals=[...vals].sort((a,b)=>a-b);
-  return vals[vals.length>>1];
-}
-function runOMR(img,numQ,manualQuad,choicesCount = DEFAULT_CHOICES, layoutOffset = [0,0]){
+
+function runOMR(img,numQ,manualQuad,choicesCount=DEFAULT_CHOICES){
   const{gray,w,h}=omrToGray(img);
-  const thr=otsu(gray);
+  // 1. หาจุดดำ 4 มุม
   let markers;
   if(manualQuad&&manualQuad.length===4){
-    markers=manualQuad.map(p=>[p[0],p[1]]);   // ใช้จุดที่ครูลากปรับเอง — แม่นที่สุด
+    markers=manualQuad.map(p=>[p[0],p[1]]);
   }else{
+    const thr=otsu(gray);
     const det=detectMarkers(gray,w,h,thr);
     if(!det)return{ok:false,reason:'หาจุดดำ 4 มุมไม่เจอ — ลากปรับจุด 4 มุมเอง หรือถ่ายให้เห็นครบ 4 มุม'};
     markers=det.pts;
   }
+  // 2. คำนวณ homography (canonical SVG → ภาพถ่าย)
   const choices=choicesForCount(choicesCount);
   const L=omrLayout(numQ,choices.length);
   const Hm=solveHomography(L.srcQuad,markers);
   if(!Hm)return{ok:false,reason:'คำนวณตำแหน่งไม่สำเร็จ ลองถ่ายใหม่ให้ตรงขึ้น'};
+  // 3. หาสเกลรัศมีฟองในภาพจริง
   const dPhoto=Math.hypot(markers[1][0]-markers[0][0],markers[1][1]-markers[0][1]);
   const dCanon=Math.hypot(L.srcQuad[1][0]-L.srcQuad[0][0],L.srcQuad[1][1]-L.srcQuad[0][1]);
-  const scale=dPhoto/dCanon, bubbleR=Math.max(4,L.R*scale), sampleR=Math.max(3,bubbleR*0.65);
+  const bubbleR=Math.max(4,L.R*(dPhoto/dCanon));
+  // 4. อ่านและตัดสินคำตอบแต่ละข้อ
   const answers={};let uncertain=0;
-
   for(let q=1;q<=numQ;q++){
-    const fills=[];
+    const bright=[];
     for(let k=0;k<choices.length;k++){
       const b=L.bubbles[(q-1)*choices.length+k];
-      const[px,py]=applyH(Hm,b.x+layoutOffset[0],b.y+layoutOffset[1]);
-      fills.push(sampleBubbleFill(gray,w,h,px,py,bubbleR));
+      const[px,py]=applyH(Hm,b.x,b.y);
+      bright.push(sampleBubble(gray,w,h,px,py,bubbleR));
     }
-    // เลือกฟองที่มี score สูงสุด (ratio*100 + darkGap*1.35)
-    // score สูง = มีหมึก/ดินสอ ต่ำ = วงว่าง
-    let mi=0;for(let k=1;k<choices.length;k++)if(fills[k].score>fills[mi].score)mi=k;
-    const scores=fills.map(f=>f.score).sort((a,b)=>b-a);
-    const bestScore=scores[0], secondScore=scores[1]??0, best=fills[mi];
-    // วงว่าง: ratio ต่ำ + darkGap ต่ำ → ไม่ตอบ
-    if(best.ratio<0.055 && best.darkGap<10)answers[q]='-';
-    // ระบายสองวง/ไม่ชัด: score รองใกล้เคียง score แชมป์ → แจ้งไม่ชัด
-    else if(secondScore>0.65*bestScore && secondScore>8){answers[q]=choices[mi];uncertain++;}
-    else answers[q]=choices[mi];
+    // paper = ฟองสว่างสุด (กระดาษขาว), dark[k] = paper − bright[k]
+    const paper=Math.max(...bright);
+    const dark=bright.map(b=>paper-b);
+    // ฟองมืดสุด = ผู้ชนะ
+    let wi=0;for(let k=1;k<choices.length;k++)if(dark[k]>dark[wi])wi=k;
+    const c0=dark[wi];
+    const c1=[...dark].sort((a,b)=>b-a)[1]??0;
+    if(c0<DARK_MIN)         answers[q]='-';
+    else if(c1>AMBIG*c0)  { answers[q]=choices[wi]; uncertain++; }
+    else                    answers[q]=choices[wi];
   }
   const blankCount=Object.values(answers).filter(a=>a==='-').length;
-  const markedCount=numQ-blankCount;
-  return{ok:true,answers,uncertain,blankCount,markedCount,choicesCount:choices.length};
+  return{ok:true,answers,uncertain,blankCount,markedCount:numQ-blankCount,choicesCount:choices.length};
 }
+
 function chooseBestOMR(img,numQ,manualQuad,preferredChoices,key){
-  const first=runOMR(img,numQ,manualQuad,preferredChoices,[0,0]);
+  const first=runOMR(img,numQ,manualQuad,preferredChoices);
   if(!first.ok)return first;
-  const hasChoiceJ=Object.values(key||{}).includes('จ');
-  const otherChoices=preferredChoices===5?4:5;
-  const mostlyBlank=first.blankCount>=Math.max(6,Math.ceil(numQ*0.70));
-  if(!mostlyBlank || hasChoiceJ)return first;
-  const second=runOMR(img,numQ,manualQuad,otherChoices,[0,0]);
+  // ถ้าผลส่วนใหญ่เป็น blank และเฉลยไม่มี จ → ลอง 5 ตัวเลือก เผื่อกระดาษพิมพ์ 5 ช้อย
+  if(first.blankCount<Math.ceil(numQ*0.65)||Object.values(key||{}).includes('จ'))return first;
+  const other=preferredChoices===5?4:5;
+  const second=runOMR(img,numQ,manualQuad,other);
   if(!second.ok)return first;
-  return second.markedCount>first.markedCount+Math.max(2,Math.ceil(numQ*0.15))?second:first;
+  return second.markedCount>first.markedCount+Math.ceil(numQ*0.15)?second:first;
 }
 
 // ============ FILE + MARKER OVERLAY ============
