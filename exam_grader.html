@@ -1528,12 +1528,11 @@ function sampleMean(gray,w,h,px,py,rad){
   return tot?sum/tot:255;
 }
 function sampleBubbleFill(gray,w,h,px,py,rad){
-  // อ่าน "กลางฟองตรง ๆ" เท่านั้น
-  // ห้ามสุ่มขยับไปซ้าย/ขวา/บน/ล่าง เพราะจากภาพจริงที่ทดสอบแล้ว
-  // การขยับอาจไปโดนขอบวง ตัวอักษร หรือเงา ทำให้อ่านคนละช้อย
-  const innerR=Math.max(3,rad*0.46);
-  const bgIn=Math.max(innerR+2,rad*1.28);
-  const bgOut=Math.max(bgIn+2,rad*1.85);
+  // อ่านกลางฟองตรง ๆ (ไม่ขยับออฟเซ็ต เพื่อไม่ไปโดนวงข้างเคียง)
+  // innerR ใหญ่พอ (0.54*rad) เพื่อจับหมึก/ดินสอที่ไม่ได้ระบายถึงกึ่งกลางพอดี
+  const innerR=Math.max(3,rad*0.54);
+  const bgIn=Math.max(innerR+2,rad*1.15);
+  const bgOut=Math.max(bgIn+2,rad*1.80);
   const innerVals=[], bgVals=[];
   const rMax=Math.ceil(bgOut);
   for(let dy=-rMax;dy<=rMax;dy++) for(let dx=-rMax;dx<=rMax;dx++){
@@ -1544,17 +1543,15 @@ function sampleBubbleFill(gray,w,h,px,py,rad){
     if(d2<=innerR*innerR)innerVals.push(v);
     else if(d2>=bgIn*bgIn && d2<=bgOut*bgOut)bgVals.push(v);
   }
-  if(!innerVals.length)return{score:0,inner:255,bg:255,ratio:0,darkGap:0,p10:255};
+  if(!innerVals.length)return{score:0,inner:255,bg:255,ratio:0,darkGap:0};
   const innerMean=innerVals.reduce((a,b)=>a+b,0)/innerVals.length;
-  innerVals.sort((a,b)=>a-b);
   const bg=medianGray(bgVals.length?bgVals:innerVals);
-  const p10=innerVals[Math.max(0,Math.floor(innerVals.length*0.10))];
-  const darkThr=Math.min(bg-18,175);
+  const darkThr=Math.min(bg-16,190);
   const darkCount=innerVals.filter(v=>v<darkThr).length;
   const ratio=darkCount/innerVals.length;
   const darkGap=bg-innerMean;
-  const score=Math.max(0,darkGap) + Math.max(0,bg-p10)*0.25 + ratio*12;
-  return{score,inner:innerMean,bg,ratio,darkGap,p10};
+  const score=ratio*100 + Math.max(0,darkGap)*1.35;
+  return{score,inner:innerMean,bg,ratio,darkGap};
 }
 function medianGray(vals){
   if(!vals.length)return 255;
@@ -1588,23 +1585,15 @@ function runOMR(img,numQ,manualQuad,choicesCount = DEFAULT_CHOICES, layoutOffset
       const[px,py]=applyH(Hm,b.x+layoutOffset[0],b.y+layoutOffset[1]);
       fills.push(sampleBubbleFill(gray,w,h,px,py,bubbleR));
     }
-    // ตัดสินแบบสัมพัทธ์ภายในข้อเดียวกัน:
-    // ฟองที่ระบายจริงจะมี "กลางฟองมืดสุด" ต่างจากฟองว่างมาก แม้กระดาษมีเงาหรือแสงไม่เท่ากัน
-    let mi=0;for(let k=1;k<choices.length;k++)if(fills[k].inner<fills[mi].inner)mi=k;
-    const ranked=fills.map((f,i)=>({f,i})).sort((a,b)=>a.f.inner-b.f.inner);
-    const best=ranked[0].f, second=ranked[1]?.f||best;
-    const innerGap=second.inner-best.inner;
-    const localInner=medianGray(fills.map(f=>f.inner));
-    const localBg=medianGray(fills.map(f=>f.bg));
-    const localDark=Math.max(localInner-best.inner, localBg-best.inner, best.darkGap);
-    const scoreGap=best.score-(ranked[1]?.f.score??0);
-
-    // เกณฑ์จากภาพจริง: ฟองที่ระบายมี gap หลักสิบถึงร้อย ส่วนฟองว่างต่างกันน้อย
-    const strong=innerGap>=14 || localDark>=22 || best.score>=22;
-    const weak=innerGap>=7 || localDark>=12 || best.score>=12 || best.ratio>=0.04;
-    const ambiguous=innerGap<7 && Math.abs(scoreGap)<6;
-    if(!weak)answers[q]='-';
-    else if(!strong || ambiguous){answers[q]=choices[mi];uncertain++;}
+    // เลือกฟองที่มี score สูงสุด (ratio*100 + darkGap*1.35)
+    // score สูง = มีหมึก/ดินสอ ต่ำ = วงว่าง
+    let mi=0;for(let k=1;k<choices.length;k++)if(fills[k].score>fills[mi].score)mi=k;
+    const scores=fills.map(f=>f.score).sort((a,b)=>b-a);
+    const bestScore=scores[0], secondScore=scores[1]??0, best=fills[mi];
+    // วงว่าง: ratio ต่ำ + darkGap ต่ำ → ไม่ตอบ
+    if(best.ratio<0.055 && best.darkGap<10)answers[q]='-';
+    // ระบายสองวง/ไม่ชัด: score รองใกล้เคียง score แชมป์ → แจ้งไม่ชัด
+    else if(secondScore>0.65*bestScore && secondScore>8){answers[q]=choices[mi];uncertain++;}
     else answers[q]=choices[mi];
   }
   const blankCount=Object.values(answers).filter(a=>a==='-').length;
