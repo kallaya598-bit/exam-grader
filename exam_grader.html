@@ -912,14 +912,7 @@ body { background:#f5f5f3; color:#111; }
       <div class="g-card glass scanner-card">
         <div class="g-card-title">กล้องตรวจคำตอบ</div>
         <div class="info-box">📸 ถ่ายให้เห็น <b>จุดดำครบทั้ง 4 มุม</b> · วางบนพื้นสว่าง · ไม่เอียงมาก · ระบายให้เข้ม</div>
-        <button class="btn btn-block btn-cam-open" onclick="openCamera()">📷 เปิดกล้องสด</button>
-        <div class="cam-or">— หรือเลือกรูปจากคลัง —</div>
-        <div class="upload-zone" id="drop-zone">
-          <input type="file" id="file-input" accept="image/*" capture="environment" onchange="handleFile(this.files[0])">
-          <div class="upload-icon">📷</div>
-          <p><strong>แตะเพื่อเปิดกล้อง / เลือกรูป</strong></p>
-          <p>รองรับ JPG, PNG, HEIC (แปลงให้อัตโนมัติ)</p>
-        </div>
+        <button class="btn btn-block btn-cam-open" onclick="openCamera()">✅ ตรวจคำตอบ</button>
         <div id="preview-wrap">
           <img id="preview-img" src="" alt="preview">
           <p id="preview-name"></p>
@@ -1823,14 +1816,22 @@ function drawReviewBubble(ctx,R,b,kind){
   const d=_g2d([b.x,b.y],R);
   const rr=Math.max(4,b.r*R.rw/G.grayW);
   const styles={
-    key:{stroke:'rgba(201,168,76,0.98)',fill:'rgba(201,168,76,0.10)',line:2.2,scale:1.22},
-    answer:{stroke:'rgba(7,148,85,0.98)',fill:'rgba(7,148,85,0.18)',line:3,scale:0.92},
-    uncertain:{stroke:'rgba(245,158,11,0.98)',fill:'rgba(245,158,11,0.18)',line:3,scale:0.92}
+    key:{stroke:'rgba(255,190,40,1)',fill:'rgba(255,190,40,0.26)',line:4.2,scale:1.24},
+    answer:{stroke:'rgba(0,210,96,1)',fill:'rgba(0,210,96,0.30)',line:4.8,scale:0.94},
+    uncertain:{stroke:'rgba(255,135,0,1)',fill:'rgba(255,135,0,0.30)',line:4.8,scale:0.94}
   };
   const s=styles[kind]||styles.answer;
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,0.85)';
+  ctx.shadowBlur=Math.max(5,rr*0.55);
+  ctx.shadowOffsetX=0; ctx.shadowOffsetY=0;
   ctx.beginPath(); ctx.arc(d[0],d[1],rr*s.scale,0,7);
   ctx.fillStyle=s.fill; ctx.strokeStyle=s.stroke; ctx.lineWidth=Math.max(1.6,s.line);
   ctx.fill(); ctx.stroke();
+  ctx.restore();
+  ctx.beginPath(); ctx.arc(d[0],d[1],rr*s.scale,0,7);
+  ctx.strokeStyle='rgba(255,255,255,0.82)'; ctx.lineWidth=Math.max(1,rr*0.12);
+  ctx.stroke();
 }
 function _evtPt(e,cvs){
   const r=cvs.getBoundingClientRect();
@@ -1881,6 +1882,7 @@ function _rrect(ctx,x,y,w,h,r){
 }
 (function initDrop(){
   const dz=document.getElementById('drop-zone');
+  if(!dz)return;
   dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
   dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
   dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);});
@@ -2091,8 +2093,15 @@ function _drawLiveQuad(canvas, video, pts, gw, gh) {
     if(Hm){
       const dPhoto=Math.hypot(pts[1][0]-pts[0][0],pts[1][1]-pts[0][1]);
       const dCanon=Math.hypot(L.srcQuad[1][0]-L.srcQuad[0][0],L.srcQuad[1][1]-L.srcQuad[0][1]);
-      const rr=Math.max(2.2,L.R*(dPhoto/dCanon)*rw/gw*0.82);
-      ctx.strokeStyle='rgba(240,208,128,0.78)'; ctx.lineWidth=Math.max(1.1,rr*0.22); ctx.setLineDash([]);
+      const rr=Math.max(2.8,L.R*(dPhoto/dCanon)*rw/gw*0.88);
+      ctx.setLineDash([]);
+      ctx.strokeStyle='rgba(0,0,0,0.72)'; ctx.lineWidth=Math.max(2.6,rr*0.42);
+      L.bubbles.forEach(b=>{
+        const p=applyH(Hm,b.x,b.y);
+        const x=ox+p[0]/gw*rw,y=oy+p[1]/gh*rh;
+        ctx.beginPath(); ctx.arc(x,y,rr,0,7); ctx.stroke();
+      });
+      ctx.strokeStyle='rgba(255,205,64,0.98)'; ctx.lineWidth=Math.max(1.8,rr*0.26);
       L.bubbles.forEach(b=>{
         const p=applyH(Hm,b.x,b.y);
         const x=ox+p[0]/gw*rw,y=oy+p[1]/gh*rh;
