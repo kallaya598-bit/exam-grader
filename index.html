@@ -1420,6 +1420,7 @@ function showMarkerOverlay(imgEl,markers,gw,gh){
   const dw=imgEl.offsetWidth||imgEl.naturalWidth;
   const dh=imgEl.offsetHeight||imgEl.naturalHeight;
   cvs.width=dw; cvs.height=dh;
+  cvs.style.width=dw+'px'; cvs.style.height=dh+'px';
   wrap.appendChild(cvs);
   const ctx=cvs.getContext('2d');
   const sx=dw/gw, sy=dh/gh;
@@ -1460,6 +1461,7 @@ function showOMRReviewOverlay(imgEl,debug){
   cvs.className='marker-overlay';
   const R=_containRect(imgEl);
   cvs.width=R.ow; cvs.height=R.oh;
+  cvs.style.width=R.ow+'px'; cvs.style.height=R.oh+'px';
   wrap.appendChild(cvs);
   const ctx=cvs.getContext('2d');
   Object.entries(debug).forEach(([q,item])=>{
