@@ -1995,12 +1995,13 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;',
 function formatScore(n){ return Number.isInteger(Number(n))?String(Number(n)):Number(n).toFixed(2).replace(/0+$/,'').replace(/\.$/,''); }
 
 // ============ LIVE CAMERA ============
-let _camStream = null, _camTimer = null;
+let _camStream = null, _camTimer = null, _camLastPts=null, _camStable=0, _camSnapDone=false;
 
 function openCamera() {
   if (!navigator.mediaDevices?.getUserMedia) {
     alert('เบราว์เซอร์นี้ไม่รองรับกล้องสด — ใช้ปุ่มเลือกรูปด้านล่างแทนได้ครับ'); return;
   }
+  _camLastPts=null; _camStable=0; _camSnapDone=false;
   const modal = document.getElementById('camera-modal');
   modal.style.display = 'flex';
   document.getElementById('cam-status').textContent = '🔍 กำลังเปิดกล้อง...';
@@ -2022,7 +2023,7 @@ function openCamera() {
 }
 
 function _detectLive(video) {
-  if (!video.videoWidth || !video.videoHeight) return;
+  if (!video.videoWidth || !video.videoHeight || _camSnapDone) return;
   const maxDim = 640;
   const sc = Math.min(1, maxDim / Math.max(video.videoWidth, video.videoHeight));
   const w = Math.round(video.videoWidth * sc), h = Math.round(video.videoHeight * sc);
@@ -2036,10 +2037,16 @@ function _detectLive(video) {
       const statusEl = document.getElementById('cam-status');
       const camCv = document.getElementById('cam-canvas');
       if (det && !det.extrapolated) {
-        statusEl.textContent = '✅ พบจุดมุมครบ — แตะ 📸 เพื่อถ่าย';
+        _updateCamStability(det.pts, gw, gh);
+        statusEl.textContent = _camStable>=4 ? '✅ ตรงและนิ่งแล้ว — กำลังถ่ายอัตโนมัติ' : '✅ พบจุดมุมครบ — ถือให้นิ่งเพื่อถ่ายอัตโนมัติ';
         statusEl.className = 'found';
         _drawLiveQuad(camCv, video, det.pts, gw, gh);
+        if (_camStable>=4) {
+          _camSnapDone=true;
+          setTimeout(()=>captureFrame(),260);
+        }
       } else {
+        _camLastPts=null; _camStable=0;
         statusEl.textContent = '🔍 กำลังหาจุดดำ 4 มุม...';
         statusEl.className = '';
         _clearCamCanvas(camCv);
@@ -2047,6 +2054,13 @@ function _detectLive(video) {
     } catch(e) {}
   };
   img.src = cv.toDataURL('image/jpeg', 0.72);
+}
+function _updateCamStability(pts,gw,gh){
+  const diag=Math.hypot(gw,gh);
+  if(!_camLastPts){ _camLastPts=pts.map(p=>[p[0],p[1]]); _camStable=1; return; }
+  const move=pts.reduce((s,p,i)=>s+Math.hypot(p[0]-_camLastPts[i][0],p[1]-_camLastPts[i][1]),0)/(pts.length*diag);
+  _camStable=move<0.012 ? _camStable+1 : 1;
+  _camLastPts=pts.map(p=>[p[0],p[1]]);
 }
 
 function _drawLiveQuad(canvas, video, pts, gw, gh) {
@@ -2069,6 +2083,23 @@ function _drawLiveQuad(canvas, video, pts, gw, gh) {
     ctx.fillStyle = 'rgba(25,195,125,0.9)'; ctx.fill();
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke();
   });
+  try{
+    const numQ=(G.gradeSubject&&G.gradeSubject.num_questions)||G.curNumQ||20;
+    const choices=choiceCount(G.gradeSubject?.choices||DEFAULT_CHOICES);
+    const L=omrLayout(numQ,choices);
+    const Hm=solveHomography(L.srcQuad,pts);
+    if(Hm){
+      const dPhoto=Math.hypot(pts[1][0]-pts[0][0],pts[1][1]-pts[0][1]);
+      const dCanon=Math.hypot(L.srcQuad[1][0]-L.srcQuad[0][0],L.srcQuad[1][1]-L.srcQuad[0][1]);
+      const rr=Math.max(2.2,L.R*(dPhoto/dCanon)*rw/gw*0.82);
+      ctx.strokeStyle='rgba(240,208,128,0.78)'; ctx.lineWidth=Math.max(1.1,rr*0.22); ctx.setLineDash([]);
+      L.bubbles.forEach(b=>{
+        const p=applyH(Hm,b.x,b.y);
+        const x=ox+p[0]/gw*rw,y=oy+p[1]/gh*rh;
+        ctx.beginPath(); ctx.arc(x,y,rr,0,7); ctx.stroke();
+      });
+    }
+  }catch(_){}
 }
 
 function _clearCamCanvas(canvas) {
@@ -2090,6 +2121,7 @@ function captureFrame() {
 function closeCamera() {
   clearInterval(_camTimer); _camTimer = null;
   if (_camStream) { _camStream.getTracks().forEach(t => t.stop()); _camStream = null; }
+  _camLastPts=null; _camStable=0; _camSnapDone=false;
   const modal = document.getElementById('camera-modal');
   modal.style.display = 'none';
   _clearCamCanvas(document.getElementById('cam-canvas'));
