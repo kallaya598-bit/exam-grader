@@ -451,10 +451,9 @@ body {
 }
 .review-legend span { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
 .review-legend .dot { width:12px; height:12px; border-radius:50%; display:inline-block; border:2px solid currentColor; }
-.review-legend .gray { color:#a0a0a0; background:rgba(160,160,160,0.08); }
+.review-legend .gold { color:#c9a84c; background:rgba(201,168,76,0.18); }
 .review-legend .green { color:#30d158; background:rgba(48,209,88,0.16); }
 .review-legend .orange { color:#ff9f0a; background:rgba(255,159,10,0.18); }
-.review-legend .red { color:#ff7b78; background:rgba(255,123,120,0.14); }
 
 /* Table */
 .g-table-wrap { border-radius:var(--radius); overflow:hidden; }
@@ -799,10 +798,9 @@ body { background:#f5f5f3; color:#111; }
           <div class="stat-box total">  <div class="stat-val" id="res-blank">—</div>  <div class="stat-label">ไม่ตอบ</div></div>
         </div>
         <div class="review-legend">
-          <span><i class="dot gray"></i>ไม่ได้เลือก</span>
-          <span><i class="dot green"></i>ระบบเลือก</span>
-          <span><i class="dot orange"></i>ไม่ชัด</span>
-          <span><i class="dot red"></i>มีรอยแต่ไม่ชนะ</span>
+          <span><i class="dot gold"></i>เฉลยที่ตั้งไว้</span>
+          <span><i class="dot green"></i>คำตอบที่ระบบอ่านได้</span>
+          <span><i class="dot orange"></i>ไม่ชัด / อ่านไม่ได้</span>
         </div>
         <div class="btn-row" style="margin-bottom:14px">
           <button class="btn btn-primary btn-sm" id="save-result-btn" onclick="saveResult()">💾 บันทึกคะแนนลงระบบ</button>
@@ -1463,21 +1461,28 @@ function showOMRReviewOverlay(imgEl,debug){
   cvs.width=R.ow; cvs.height=R.oh;
   wrap.appendChild(cvs);
   const ctx=cvs.getContext('2d');
-  Object.values(debug).flatMap(q=>q.bubbles||[]).forEach(b=>{
-    const d=_g2d([b.x,b.y],R);
-    const rr=Math.max(3,b.r*R.rw/G.grayW);
-    const style=reviewBubbleStyle(b.role);
-    ctx.beginPath(); ctx.arc(d[0],d[1],rr,0,7);
-    ctx.fillStyle=style.fill; ctx.strokeStyle=style.stroke; ctx.lineWidth=Math.max(1.4,rr*0.22);
-    ctx.fill(); ctx.stroke();
+  Object.entries(debug).forEach(([q,item])=>{
+    const bubbles=item.bubbles||[];
+    const keyChoice=G.curKey&&G.curKey[q];
+    const keyBubble=bubbles.find(b=>b.choice===keyChoice);
+    const ansBubble=bubbles.find(b=>b.choice===item.selected)||bubbles.find(b=>b.role==='uncertain');
+    if(keyBubble) drawReviewBubble(ctx,R,keyBubble,'key');
+    if(ansBubble) drawReviewBubble(ctx,R,ansBubble,item.status==='uncertain'?'uncertain':'answer');
   });
-  _badge(ctx,'✅ ตรวจแล้ว — สีเขียวคือช้อยที่ระบบจับได้','rgba(0,170,75,0.85)',R.ow);
+  _badge(ctx,'✅ ตรวจแล้ว — วงทองคือเฉลย วงเขียวคือคำตอบที่อ่านได้','rgba(0,170,75,0.85)',R.ow);
 }
-function reviewBubbleStyle(role){
-  if(role==='selected') return {stroke:'rgba(48,209,88,0.98)',fill:'rgba(48,209,88,0.16)'};
-  if(role==='uncertain') return {stroke:'rgba(255,159,10,0.98)',fill:'rgba(255,159,10,0.18)'};
-  if(role==='trace') return {stroke:'rgba(255,123,120,0.86)',fill:'rgba(255,123,120,0.12)'};
-  return {stroke:'rgba(160,160,160,0.72)',fill:'rgba(160,160,160,0.06)'};
+function drawReviewBubble(ctx,R,b,kind){
+  const d=_g2d([b.x,b.y],R);
+  const rr=Math.max(4,b.r*R.rw/G.grayW);
+  const styles={
+    key:{stroke:'rgba(201,168,76,0.98)',fill:'rgba(201,168,76,0.10)',line:2.2,scale:1.22},
+    answer:{stroke:'rgba(48,209,88,0.98)',fill:'rgba(48,209,88,0.18)',line:3,scale:0.92},
+    uncertain:{stroke:'rgba(255,159,10,0.98)',fill:'rgba(255,159,10,0.18)',line:3,scale:0.92}
+  };
+  const s=styles[kind]||styles.answer;
+  ctx.beginPath(); ctx.arc(d[0],d[1],rr*s.scale,0,7);
+  ctx.fillStyle=s.fill; ctx.strokeStyle=s.stroke; ctx.lineWidth=Math.max(1.6,s.line);
+  ctx.fill(); ctx.stroke();
 }
 function _badge(ctx,txt,bg,dw){
   const pad=10,bh=34,bw=Math.min(dw-20,340),fs=Math.max(11,Math.min(13,dw*0.033));

@@ -450,10 +450,9 @@ body {
 }
 .review-legend span { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
 .review-legend .dot { width:12px; height:12px; border-radius:50%; display:inline-block; border:2px solid currentColor; }
-.review-legend .gray { color:#8c8c8c; background:rgba(140,140,140,0.08); }
+.review-legend .gold { color:#c9a84c; background:rgba(201,168,76,0.18); }
 .review-legend .green { color:#079455; background:rgba(7,148,85,0.16); }
 .review-legend .orange { color:#f59e0b; background:rgba(245,158,11,0.18); }
-.review-legend .red { color:#ef6f6c; background:rgba(239,111,108,0.14); }
 
 /* Table */
 .g-table-wrap { border-radius:var(--radius); overflow:hidden; }
@@ -944,10 +943,9 @@ body { background:#f5f5f3; color:#111; }
           <div class="stat-box total">  <div class="stat-val" id="res-blank">—</div>  <div class="stat-label">ไม่ตอบ</div></div>
         </div>
         <div class="review-legend">
-          <span><i class="dot gray"></i>ไม่ได้เลือก</span>
-          <span><i class="dot green"></i>ระบบเลือก</span>
-          <span><i class="dot orange"></i>ไม่ชัด</span>
-          <span><i class="dot red"></i>มีรอยแต่ไม่ชนะ</span>
+          <span><i class="dot gold"></i>เฉลยที่ตั้งไว้</span>
+          <span><i class="dot green"></i>คำตอบที่ระบบอ่านได้</span>
+          <span><i class="dot orange"></i>ไม่ชัด / อ่านไม่ได้</span>
         </div>
         <div class="btn-row" style="margin-bottom:14px">
           <button class="btn btn-primary btn-sm" id="save-result-btn" onclick="saveResult()">💾 บันทึกคะแนนลงระบบ</button>
@@ -1778,10 +1776,9 @@ function initAdjustOverlay(imgEl,det,gw,gh){
   wrap.querySelectorAll('.marker-overlay').forEach(c=>c.remove());
   const cvs=document.createElement('canvas');
   cvs.className='marker-overlay';
-  cvs.style.pointerEvents='auto'; cvs.style.touchAction='none'; cvs.style.zIndex='20';
+  cvs.style.pointerEvents='none'; cvs.style.zIndex='20';
   wrap.appendChild(cvs);
   G._ov=cvs;
-  attachQuadDrag(cvs,imgEl);
   drawAdjustOverlay(imgEl);
   // วาดซ้ำหลัง layout นิ่ง (กันขนาดรูปเปลี่ยน)
   setTimeout(()=>drawAdjustOverlay(imgEl),200);
@@ -1809,56 +1806,30 @@ function drawAdjustOverlay(imgEl){
   if(G.omrDebug){
     drawOMRReviewOverlay(ctx,R,G.omrDebug);
   }
-  // --- กริดแดงก่อนตรวจ (ตำแหน่งที่จะอ่านจริง) ---
-  else
-  try{
-    const numQ=(G.gradeSubject&&G.gradeSubject.num_questions)||G.curNumQ||20;
-    const L=omrLayout(numQ, G.gradeSubject?.choices || DEFAULT_CHOICES);
-    const Hm=solveHomography(L.srcQuad,G.quad);
-    if(Hm){
-      const dPhoto=Math.hypot(G.quad[1][0]-G.quad[0][0],G.quad[1][1]-G.quad[0][1]);
-      const dCanon=Math.hypot(L.srcQuad[1][0]-L.srcQuad[0][0],L.srcQuad[1][1]-L.srcQuad[0][1]);
-      const rr=Math.max(2.5,L.R*(dPhoto/dCanon)*R.rw/G.grayW);
-      ctx.strokeStyle='rgba(230,30,30,0.92)'; ctx.lineWidth=Math.max(1.2,rr*0.2);
-      L.bubbles.forEach(b=>{ const g=applyH(Hm,b.x,b.y),d=_g2d(g,R);
-        ctx.beginPath(); ctx.arc(d[0],d[1],rr,0,7); ctx.stroke(); });
-    }
-  }catch(ex){}
-  // --- เส้นกรอบเชื่อม 4 มุม ---
-  const D=G.quad.map(p=>_g2d(p,R));
-  ctx.strokeStyle='rgba(201,168,76,0.95)'; ctx.lineWidth=2; ctx.setLineDash([6,4]);
-  ctx.beginPath(); ctx.moveTo(D[0][0],D[0][1]);
-  for(let i=1;i<4;i++) ctx.lineTo(D[i][0],D[i][1]);
-  ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
-  // --- หมุดลากได้ 4 จุด ---
-  D.forEach((d,i)=>{
-    ctx.beginPath(); ctx.arc(d[0],d[1],14,0,7);
-    ctx.fillStyle=G._drag===i?'rgba(201,168,76,0.95)':'rgba(26,39,68,0.92)'; ctx.fill();
-    ctx.lineWidth=3; ctx.strokeStyle='#fff'; ctx.stroke();
-    ctx.fillStyle='#fff'; ctx.font='bold 14px Sarabun,sans-serif';
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(String(i+1),d[0],d[1]+0.5);
-  });
-  // --- ป้ายบอกสถานะ ---
-  if(G.autoOk) _badge(ctx,'✅ ตรวจจับได้ — ลากหมุด 1-4 ปรับถ้ายังไม่ตรง','rgba(0,150,70,0.9)',R.ow);
-  else _badge(ctx,'✋ ลากหมุด 1-4 ทับจุดดำ 4 มุม ให้วงแดงตรงวงจริง','rgba(180,90,0,0.92)',R.ow);
 }
 function drawOMRReviewOverlay(ctx,R,debug){
-  const items=Object.values(debug).flatMap(q=>q.bubbles||[]);
-  items.forEach(b=>{
-    const d=_g2d([b.x,b.y],R);
-    const rr=Math.max(3,b.r*R.rw/G.grayW);
-    const style=reviewBubbleStyle(b.role);
-    ctx.beginPath(); ctx.arc(d[0],d[1],rr,0,7);
-    ctx.fillStyle=style.fill; ctx.strokeStyle=style.stroke; ctx.lineWidth=Math.max(1.4,rr*0.22);
-    ctx.fill(); ctx.stroke();
+  Object.entries(debug).forEach(([q,item])=>{
+    const bubbles=item.bubbles||[];
+    const keyChoice=G.curKey&&G.curKey[q];
+    const keyBubble=bubbles.find(b=>b.choice===keyChoice);
+    const ansBubble=bubbles.find(b=>b.choice===item.selected);
+    if(keyBubble) drawReviewBubble(ctx,R,keyBubble,'key');
+    if(ansBubble) drawReviewBubble(ctx,R,ansBubble,item.status==='uncertain'?'uncertain':'answer');
   });
+  _badge(ctx,'✅ ตรวจแล้ว — วงทองคือเฉลย วงเขียวคือคำตอบที่อ่านได้','rgba(0,150,70,0.9)',R.ow);
 }
-function reviewBubbleStyle(role){
-  if(role==='selected') return {stroke:'rgba(7,148,85,0.98)',fill:'rgba(7,148,85,0.16)'};
-  if(role==='uncertain') return {stroke:'rgba(245,158,11,0.98)',fill:'rgba(245,158,11,0.18)'};
-  if(role==='trace') return {stroke:'rgba(239,111,108,0.86)',fill:'rgba(239,111,108,0.12)'};
-  return {stroke:'rgba(120,120,120,0.72)',fill:'rgba(120,120,120,0.06)'};
+function drawReviewBubble(ctx,R,b,kind){
+  const d=_g2d([b.x,b.y],R);
+  const rr=Math.max(4,b.r*R.rw/G.grayW);
+  const styles={
+    key:{stroke:'rgba(201,168,76,0.98)',fill:'rgba(201,168,76,0.10)',line:2.2,scale:1.22},
+    answer:{stroke:'rgba(7,148,85,0.98)',fill:'rgba(7,148,85,0.18)',line:3,scale:0.92},
+    uncertain:{stroke:'rgba(245,158,11,0.98)',fill:'rgba(245,158,11,0.18)',line:3,scale:0.92}
+  };
+  const s=styles[kind]||styles.answer;
+  ctx.beginPath(); ctx.arc(d[0],d[1],rr*s.scale,0,7);
+  ctx.fillStyle=s.fill; ctx.strokeStyle=s.stroke; ctx.lineWidth=Math.max(1.6,s.line);
+  ctx.fill(); ctx.stroke();
 }
 function _evtPt(e,cvs){
   const r=cvs.getBoundingClientRect();
