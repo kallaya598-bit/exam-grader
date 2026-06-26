@@ -1604,7 +1604,7 @@ function runOMR(img,numQ,manualQuad,choicesCount=DEFAULT_CHOICES){
     const c1=[...dark].sort((a,b)=>b-a)[1]??0;
     let status='clear';
     if(c0<DARK_MIN)       { answers[q]='-'; status='blank'; }
-    else if(c1>AMBIG*c0)  { answers[q]=choices[wi]; uncertain++; status='uncertain'; }
+    else if(c1>AMBIG*c0)  { answers[q]='?'; uncertain++; status='uncertain'; }
     else                    answers[q]=choices[wi];
     bubbles.forEach((b,k)=>{
       if(status==='blank') b.role='empty';
@@ -1806,7 +1806,7 @@ function drawOMRReviewOverlay(ctx,R,debug){
     const bubbles=item.bubbles||[];
     const keyChoice=G.curKey&&G.curKey[q];
     const keyBubble=bubbles.find(b=>b.choice===keyChoice);
-    const ansBubble=bubbles.find(b=>b.choice===item.selected);
+    const ansBubble=bubbles.find(b=>b.choice===item.selected)||bubbles.find(b=>b.role==='uncertain');
     if(keyBubble) drawReviewBubble(ctx,R,keyBubble,'key');
     if(ansBubble) drawReviewBubble(ctx,R,ansBubble,item.status==='uncertain'?'uncertain':'answer');
   });
