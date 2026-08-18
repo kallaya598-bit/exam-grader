@@ -31,8 +31,13 @@ export default {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: headers(req) })
     if (req.method !== 'POST') return reply(req, 405, { error: 'Method not allowed' })
 
-    const callerId = String(ctx.userClaims?.sub || ctx.userClaims?.id || '')
-    if (!callerId) return reply(req, 401, { error: 'Session expired' })
+    // Resolve the caller from Supabase Auth itself. This also keeps the
+    // function compatible with both legacy and asymmetric JWT claim shapes.
+    const { data: authData, error: authError } = await ctx.supabase.auth.getUser()
+    const callerId = String(
+      authData?.user?.id || ctx.userClaims?.id || ctx.jwtClaims?.sub || ''
+    )
+    if (authError || !callerId) return reply(req, 401, { error: 'Session expired' })
     const admin = ctx.supabaseAdmin
 
     let input: Record<string, unknown>
