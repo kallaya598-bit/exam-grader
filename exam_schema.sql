@@ -278,4 +278,15 @@ grant select, insert, update, delete on table public.exam_subjects to authentica
 grant select, insert, update, delete on table public.exam_results to authenticated;
 grant usage, select on all sequences in schema public to authenticated;
 
+-- Edge Functions use the service_role client for trusted invitation writes.
+-- Grant it explicitly because tables created through the SQL editor may not
+-- inherit the dashboard's usual service-role privileges.
+grant usage on schema public to service_role;
+grant all privileges on table public.exam_schools to service_role;
+grant all privileges on table public.exam_profiles to service_role;
+grant all privileges on table public.exam_platform_admins to service_role;
+grant all privileges on table public.exam_subjects to service_role;
+grant all privileges on table public.exam_results to service_role;
+grant usage, select on all sequences in schema public to service_role;
+
 -- Create the first Auth user before inserting the first school and admin profile.
