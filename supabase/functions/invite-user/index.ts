@@ -81,14 +81,16 @@ export default {
         return reply(req, 400, { error: inviteError?.message || 'ส่งคำเชิญไม่สำเร็จ' })
       }
 
-      const { error: profileError } = await admin.from('exam_profiles').insert({
+      const { error: profileError } = await admin.from('exam_profiles').upsert({
         user_id: invited.user.id, school_id: school.id, email,
         full_name: fullName, role: 'admin',
-      })
+      }, { onConflict: 'user_id' })
       if (profileError) {
-        await admin.auth.admin.deleteUser(invited.user.id)
+        console.error('create_school profile error', profileError)
         await admin.from('exam_schools').delete().eq('id', school.id)
-        return reply(req, 400, { error: 'สร้างโปรไฟล์ผู้ดูแลไม่สำเร็จ' })
+        return reply(req, 400, {
+          error: `สร้างโปรไฟล์ผู้ดูแลไม่สำเร็จ (${profileError.code || 'database error'})`,
+        })
       }
       return reply(req, 201, { ok: true, school, invited_email: email })
     }
@@ -116,13 +118,15 @@ export default {
         return reply(req, 400, { error: inviteError?.message || 'ส่งคำเชิญไม่สำเร็จ' })
       }
 
-      const { error: profileError } = await admin.from('exam_profiles').insert({
+      const { error: profileError } = await admin.from('exam_profiles').upsert({
         user_id: invited.user.id, school_id: schoolId, email,
         full_name: fullName, role: 'teacher',
-      })
+      }, { onConflict: 'user_id' })
       if (profileError) {
-        await admin.auth.admin.deleteUser(invited.user.id)
-        return reply(req, 400, { error: 'สร้างโปรไฟล์ครูไม่สำเร็จ' })
+        console.error('invite_teacher profile error', profileError)
+        return reply(req, 400, {
+          error: `สร้างโปรไฟล์ครูไม่สำเร็จ (${profileError.code || 'database error'})`,
+        })
       }
       return reply(req, 201, { ok: true, invited_email: email })
     }
