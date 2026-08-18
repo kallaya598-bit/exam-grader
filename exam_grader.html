@@ -732,6 +732,17 @@ body { background:#f5f5f3; color:#111; }
 }
 .btn-cam-open:hover:not(:disabled) { background:#222; }
 .cam-or { text-align:center; font-size:12px; color:#888; margin-bottom:10px; }
+.account-card { max-width:620px; margin:0 auto; }
+.account-summary { padding:14px 16px; border:1px solid #dededb; border-radius:12px; background:#fafaf8; margin-bottom:16px; }
+.account-summary div + div { margin-top:7px; }
+.account-summary span { color:#666; display:inline-block; min-width:110px; }
+.manage-list { display:grid; gap:10px; margin-top:14px; }
+.manage-item { border:1px solid #dededb; background:#fff; border-radius:12px; padding:12px 14px; display:flex; justify-content:space-between; gap:12px; align-items:center; }
+.manage-item-main { min-width:0; }
+.manage-item-name { font-weight:800; overflow-wrap:anywhere; }
+.manage-item-meta { color:#777; font-size:12px; margin-top:3px; overflow-wrap:anywhere; }
+.role-badge { white-space:nowrap; font-size:11px; border-radius:999px; padding:5px 9px; background:#eaf8f1; color:#087443; font-weight:800; }
+.form-help { font-size:12px; color:#777; line-height:1.55; margin-top:-4px; margin-bottom:12px; }
 </style>
 </head>
 <body>
@@ -770,10 +781,28 @@ body { background:#f5f5f3; color:#111; }
     <div class="login-school">ScanScore</div>
     <div class="login-sub">ระบบตรวจข้อสอบอัตโนมัติ OMR</div>
     <div class="login-divider"></div>
-    <input class="g-input" id="l-user" type="text"     placeholder="ชื่อผู้ใช้ (username)" autocomplete="username">
+    <input class="g-input" id="l-user" type="email"    placeholder="อีเมล" autocomplete="email">
     <input class="g-input" id="l-pass" type="password" placeholder="รหัสผ่าน" autocomplete="current-password">
     <button class="btn-login" id="login-btn" onclick="doLogin()">เข้าสู่ระบบ</button>
     <div class="login-error" id="login-err"></div>
+  </div>
+</div>
+
+<!-- ======================================== INVITE SETUP ======================================== -->
+<div id="invite-screen" style="display:none;min-height:100vh;align-items:center;justify-content:center;padding:22px">
+  <div class="login-card glass account-card">
+    <div class="login-school">ตั้งค่าบัญชีครั้งแรก</div>
+    <div class="login-sub">ตรวจสอบข้อมูล แล้วตั้งรหัสผ่านของคุณ</div>
+    <div class="account-summary">
+      <div><span>ชื่อ</span><strong id="invite-fullname">—</strong></div>
+      <div><span>โรงเรียน</span><strong id="invite-school">—</strong></div>
+      <div><span>อีเมล</span><strong id="invite-email">—</strong></div>
+    </div>
+    <input class="g-input" id="invite-password" type="password" placeholder="รหัสผ่านใหม่ (อย่างน้อย 8 ตัว)" autocomplete="new-password">
+    <input class="g-input" id="invite-password-confirm" type="password" placeholder="ยืนยันรหัสผ่านใหม่" autocomplete="new-password">
+    <input class="g-input" id="invite-logo" type="url" placeholder="ลิงก์โลโก้โรงเรียน (ไม่บังคับ สำหรับผู้ดูแลโรงเรียน)">
+    <button class="btn-login" id="invite-save-btn" onclick="finishInviteSetup()">บันทึกและเข้าใช้งาน</button>
+    <div class="login-error" id="invite-err"></div>
   </div>
 </div>
 
@@ -803,6 +832,8 @@ body { background:#f5f5f3; color:#111; }
       <button class="tab-btn active" data-tab="subject" onclick="switchTab('subject')">📚 รายวิชา &amp; เฉลย</button>
       <button class="tab-btn"        data-tab="print"   onclick="switchTab('print')">🖨️ พิมพ์กระดาษ</button>
       <button class="tab-btn"        data-tab="grade"   onclick="switchTab('grade')">✅ ตรวจข้อสอบ</button>
+      <button class="tab-btn school-admin-only" data-tab="teachers" onclick="switchTab('teachers')" style="display:none">👥 จัดการครู</button>
+      <button class="tab-btn platform-only" data-tab="schools" onclick="switchTab('schools')" style="display:none">🏫 จัดการโรงเรียน</button>
     </div>
   </div>
 
@@ -859,6 +890,46 @@ body { background:#f5f5f3; color:#111; }
               <button class="btn btn-danger btn-sm" id="del-btn" onclick="deleteSubject()" style="display:none">ลบรายวิชา</button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SCHOOL ADMIN: TEACHERS ===== -->
+    <div class="panel" id="panel-teachers">
+      <div class="two-col">
+        <div class="g-card glass">
+          <div class="g-card-title">เชิญครูเข้าใช้งาน</div>
+          <div class="field"><label>ชื่อ-นามสกุล *</label><input id="teacher-name" placeholder="ชื่อครู"></div>
+          <div class="field"><label>อีเมล *</label><input id="teacher-email" type="email" placeholder="teacher@example.com"></div>
+          <div class="form-help">ระบบจะส่งลิงก์ให้ครูตั้งรหัสผ่านเอง และผูกบัญชีกับโรงเรียนนี้โดยอัตโนมัติ</div>
+          <button class="btn btn-primary" id="teacher-invite-btn" onclick="inviteTeacher()">ส่งคำเชิญ</button>
+          <div class="error-box" id="teacher-msg"></div>
+        </div>
+        <div class="g-card glass">
+          <div class="g-card-title">ผู้ใช้งานในโรงเรียน</div>
+          <button class="btn btn-ghost btn-sm" onclick="loadTeachers()">⟳ โหลดใหม่</button>
+          <div class="manage-list" id="teacher-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PLATFORM ADMIN: SCHOOLS ===== -->
+    <div class="panel" id="panel-schools">
+      <div class="two-col">
+        <div class="g-card glass">
+          <div class="g-card-title">เพิ่มโรงเรียนและเชิญผู้ดูแล</div>
+          <div class="field"><label>ชื่อโรงเรียน *</label><input id="school-name" placeholder="ชื่อเต็มของโรงเรียน"></div>
+          <div class="field"><label>รหัสย่อโรงเรียน *</label><input id="school-code" maxlength="20" placeholder="เช่น NYK"></div>
+          <div class="field"><label>ชื่อผู้ดูแลโรงเรียน *</label><input id="school-admin-name" placeholder="ชื่อ-นามสกุล"></div>
+          <div class="field"><label>อีเมลผู้ดูแล *</label><input id="school-admin-email" type="email" placeholder="admin@example.com"></div>
+          <div class="form-help">สร้างโรงเรียนเสร็จแล้ว ระบบจะส่งลิงก์เชิญไปยังอีเมลผู้ดูแลทันที</div>
+          <button class="btn btn-primary" id="school-create-btn" onclick="createSchoolInvite()">สร้างโรงเรียนและส่งคำเชิญ</button>
+          <div class="error-box" id="school-msg"></div>
+        </div>
+        <div class="g-card glass">
+          <div class="g-card-title">โรงเรียนทั้งหมด</div>
+          <button class="btn btn-ghost btn-sm" onclick="loadSchools()">⟳ โหลดใหม่</button>
+          <div class="manage-list" id="school-list"></div>
         </div>
       </div>
     </div>
@@ -984,89 +1055,181 @@ body { background:#f5f5f3; color:#111; }
 
 <script>
 // ============ CONFIG ============
-const SB  = 'https://ujajukwmxulayxxxxmpr.supabase.co';
-const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYWp1a3dteHVsYXl4eHh4bXByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxNDc4MDAsImV4cCI6MjA5NTcyMzgwMH0.DbiP5Qelewl0ozjTNn8GpAkjq256bCGusO4irblMVOo';
+const SB  = 'https://vsolzzeruxujncoqusas.supabase.co';
+const KEY = 'sb_publishable_mgcszrgOs1WyfIpMrvVmBQ_FWq0_5kg';
 const H   = { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' };
 const ALL_CHOICES = ['ก','ข','ค','ง','จ'];
 const DEFAULT_CHOICES = 4;
-const TRIAL_EXPIRES_AT = '2026-07-01T23:59:59+07:00';
-const TRIAL_ACCOUNTS = [
-  ['trial01','OMR7-4821'], ['trial02','OMR7-7396'],
-  ['trial03','OMR7-1584'], ['trial04','OMR7-9062'],
-  ['trial05','OMR7-3147'], ['trial06','OMR7-6259'],
-  ['trial07','OMR7-8703'], ['trial08','OMR7-2468'],
-  ['trial09','OMR7-5910'], ['trial10','OMR7-0375']
-].map(([username,password],i)=>({username,password,no:i+1}));
+const AUTH_STORAGE = 'exam_auth_session';
 const SHEET_W = 800, SHEET_H = 1130;
 const MK = { size:50, tl:{x:55,y:55}, tr:{x:745,y:55}, br:{x:745,y:1075}, bl:{x:55,y:1075} };
 
 const G = {
   user: null, subjects: [], current: null, gradeSubject: null,
+  accessToken: null, refreshToken: null,
   lastResult: null, imageBase64: null, imageType: 'image/jpeg',
   curKey: {}, curNumQ: 20,
   quad: null, grayW: 0, grayH: 0, _drag: -1   // จุด 4 มุมที่ลากปรับได้ (พิกัด gray-image)
 };
 
 // ============ LOGIN ============
-function getTrialUser(username,password) {
-  const account = TRIAL_ACCOUNTS.find(a => a.username === username.toLowerCase() && a.password === password);
-  if (!account) return null;
-  if (new Date() > new Date(TRIAL_EXPIRES_AT)) throw new Error('บัญชีทดลองหมดอายุแล้ว');
-  return {
-    id: 'trial-' + account.username,
-    username: account.username,
-    fullname: 'ผู้ทดลองใช้งาน ' + String(account.no).padStart(2,'0'),
-    role: 'trial',
-    is_trial: true,
-    expires_at: TRIAL_EXPIRES_AT
+function applyAuthSession(session) {
+  if (!session?.access_token || !session?.refresh_token) throw new Error('ข้อมูลการเข้าสู่ระบบไม่สมบูรณ์');
+  G.accessToken = session.access_token;
+  G.refreshToken = session.refresh_token;
+  H.Authorization = 'Bearer ' + session.access_token;
+  localStorage.setItem(AUTH_STORAGE, JSON.stringify({
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+    expires_at: session.expires_at,
+    user: session.user
+  }));
+}
+
+function clearAuthSession() {
+  localStorage.removeItem(AUTH_STORAGE);
+  sessionStorage.removeItem('exam_user');
+  G.user = null; G.accessToken = null; G.refreshToken = null;
+  H.Authorization = 'Bearer ' + KEY;
+}
+
+async function loadAuthenticatedUser(authUser) {
+  const platformRes = await fetch(
+    SB + '/rest/v1/exam_platform_admins?user_id=eq.' + encodeURIComponent(authUser.id) + '&select=user_id',
+    { headers:H }
+  );
+  if (!platformRes.ok) throw new Error('ตรวจสอบสิทธิ์ผู้ดูแลระบบไม่สำเร็จ');
+  const isPlatformAdmin = (await platformRes.json()).length > 0;
+
+  const profileRes = await fetch(
+    SB + '/rest/v1/exam_profiles?user_id=eq.' + encodeURIComponent(authUser.id) + '&select=user_id,school_id,email,full_name,role,active',
+    { headers:H }
+  );
+  if (!profileRes.ok) throw new Error('โหลดข้อมูลบัญชีไม่สำเร็จ');
+  const profile = (await profileRes.json())[0];
+  if (!profile && isPlatformAdmin) {
+    G.user = {
+      id: authUser.id,
+      email: authUser.email,
+      username: authUser.email,
+      fullname: authUser.user_metadata?.full_name || authUser.email,
+      role: 'platform_admin',
+      is_platform_admin: true,
+      school_id: null,
+      school_name: 'ผู้ดูแลระบบ ScanScore'
+    };
+    return;
+  }
+  if (!profile?.active) throw new Error('บัญชีนี้ยังไม่ได้ผูกกับโรงเรียนหรือถูกระงับ');
+
+  const schoolRes = await fetch(
+    SB + '/rest/v1/exam_schools?id=eq.' + encodeURIComponent(profile.school_id) + '&select=id,name,code,logo_url,active',
+    { headers:H }
+  );
+  if (!schoolRes.ok) throw new Error('โหลดข้อมูลโรงเรียนไม่สำเร็จ');
+  const school = (await schoolRes.json())[0];
+  if (!school?.active) throw new Error('โรงเรียนนี้ถูกระงับการใช้งาน');
+
+  G.user = {
+    id: profile.user_id,
+    email: profile.email || authUser.email,
+    username: profile.email || authUser.email,
+    fullname: profile.full_name,
+    role: profile.role,
+    is_platform_admin: isPlatformAdmin,
+    school_id: profile.school_id,
+    school_name: school.name,
+    school_code: school.code,
+    school_logo_url: school.logo_url || null
   };
 }
+
 async function doLogin() {
-  const username = document.getElementById('l-user').value.trim();
+  const email = document.getElementById('l-user').value.trim().toLowerCase();
   const password = document.getElementById('l-pass').value;
   const errEl = document.getElementById('login-err');
   const btn = document.getElementById('login-btn');
-  if (!username || !password) { errEl.textContent = 'กรุณากรอก username และ password'; return; }
+  if (!email || !password) { errEl.textContent = 'กรุณากรอกอีเมลและรหัสผ่าน'; return; }
   btn.disabled = true; btn.textContent = 'กำลังตรวจสอบ...'; errEl.textContent = '';
   try {
-    const trialUser = getTrialUser(username,password);
-    if (trialUser) {
-      G.user = trialUser;
-      sessionStorage.setItem('exam_user', JSON.stringify(trialUser));
-      showApp();
-      return;
-    }
-    const res = await fetch(SB + '/rest/v1/rpc/login', {
-      method: 'POST', headers: H,
-      body: JSON.stringify({ p_username: username, p_password: password })
+    const res = await fetch(SB + '/auth/v1/token?grant_type=password', {
+      method: 'POST',
+      headers: { 'apikey': KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
     });
-    const data = await res.json();
-    const user = Array.isArray(data) ? data[0] : data;
-    if (!user || !user.id || res.status >= 400)
-      throw new Error('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
-    G.user = user;
-    sessionStorage.setItem('exam_user', JSON.stringify(user));
+    const session = await res.json();
+    if (!res.ok || !session?.access_token) throw new Error('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+    applyAuthSession(session);
+    await loadAuthenticatedUser(session.user);
     showApp();
   } catch(e) {
+    clearAuthSession();
     errEl.textContent = '⚠️ ' + (e.message || 'เข้าสู่ระบบไม่สำเร็จ');
   } finally {
     btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
   }
 }
 
-function doLogout() {
-  sessionStorage.removeItem('exam_user'); G.user = null;
+async function doLogout() {
+  try {
+    if (G.accessToken) await fetch(SB + '/auth/v1/logout', { method:'POST', headers:H });
+  } catch(e) {
+    // ล้าง session ในเครื่องเสมอ แม้เครือข่ายขัดข้อง
+  }
+  clearAuthSession();
   document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('invite-screen').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('l-pass').value = '';
   document.getElementById('login-err').textContent = '';
 }
 
+async function restoreAuthSession() {
+  try {
+    let session = JSON.parse(localStorage.getItem(AUTH_STORAGE) || 'null');
+    if (!session?.refresh_token) return false;
+    if (!session.expires_at || session.expires_at * 1000 <= Date.now() + 60000) {
+      const res = await fetch(SB + '/auth/v1/token?grant_type=refresh_token', {
+        method:'POST', headers:{'apikey':KEY,'Content-Type':'application/json'},
+        body:JSON.stringify({refresh_token:session.refresh_token})
+      });
+      session = await res.json();
+      if (!res.ok || !session?.access_token) throw new Error('session expired');
+    }
+    applyAuthSession(session);
+    await loadAuthenticatedUser(session.user);
+    showApp();
+    return true;
+  } catch(e) {
+    clearAuthSession();
+    return false;
+  }
+}
+
 function showApp() {
   document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('invite-screen').style.display = 'none';
   document.getElementById('app-screen').style.display  = 'flex';
-  document.getElementById('hdr-user').textContent = (G.user?.fullname || G.user?.username || '') + (G.user?.is_trial ? ' · ทดลอง' : '');
-  buildKeyGrid(); loadSubjects();
+  document.getElementById('hdr-user').textContent = G.user?.fullname || G.user?.username || '';
+
+  const isPlatform = G.user?.role === 'platform_admin' || G.user?.is_platform_admin === true;
+  const hasSchool = Boolean(G.user?.school_id);
+  const isSchoolAdmin = G.user?.role === 'admin';
+  document.querySelectorAll('.platform-only').forEach(el => el.style.display = isPlatform ? '' : 'none');
+  document.querySelectorAll('.school-admin-only').forEach(el => el.style.display = isSchoolAdmin ? '' : 'none');
+  ['subject','print','grade'].forEach(name => {
+    const button = document.querySelector('.tab-btn[data-tab="' + name + '"]');
+    if (button) button.style.display = hasSchool ? '' : 'none';
+  });
+
+  if (!hasSchool) {
+    switchTab('schools');
+    loadSchools();
+  } else {
+    switchTab('subject');
+    buildKeyGrid();
+    loadSubjects();
+  }
 }
 
 ['l-user','l-pass'].forEach(id =>
@@ -1079,6 +1242,163 @@ function switchTab(name) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   if (name === 'print') initPrintTab();
+  if (name === 'teachers') loadTeachers();
+  if (name === 'schools') loadSchools();
+}
+
+// ============ INVITES & ACCOUNT MANAGEMENT ============
+async function handleInviteLink() {
+  const params = new URLSearchParams(location.hash.replace(/^#/, ''));
+  if (!['invite','recovery'].includes(params.get('type'))) return false;
+  const accessToken = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  if (!accessToken || !refreshToken) return false;
+
+  H.Authorization = 'Bearer ' + accessToken;
+  const userRes = await fetch(SB + '/auth/v1/user', { headers:H });
+  const authUser = await userRes.json();
+  if (!userRes.ok || !authUser?.id) throw new Error('ลิงก์เชิญหมดอายุหรือถูกใช้แล้ว');
+  applyAuthSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    expires_at: Number(params.get('expires_at')) || Math.floor(Date.now()/1000) + Number(params.get('expires_in') || 3600),
+    user: authUser
+  });
+  await loadAuthenticatedUser(authUser);
+
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('invite-screen').style.display = 'flex';
+  document.getElementById('invite-fullname').textContent = G.user.fullname || '—';
+  document.getElementById('invite-school').textContent = G.user.school_name || '—';
+  document.getElementById('invite-email').textContent = G.user.email || '—';
+  document.getElementById('invite-logo').style.display = G.user.role === 'admin' ? '' : 'none';
+  return true;
+}
+
+async function finishInviteSetup() {
+  const password = document.getElementById('invite-password').value;
+  const confirm = document.getElementById('invite-password-confirm').value;
+  const logoUrl = document.getElementById('invite-logo').value.trim();
+  const err = document.getElementById('invite-err');
+  const btn = document.getElementById('invite-save-btn');
+  if (password.length < 8) { err.textContent = 'รหัสผ่านต้องมีอย่างน้อย 8 ตัว'; return; }
+  if (password !== confirm) { err.textContent = 'รหัสผ่านทั้งสองช่องไม่ตรงกัน'; return; }
+  if (logoUrl && !/^https:\/\//i.test(logoUrl)) { err.textContent = 'ลิงก์โลโก้ต้องขึ้นต้นด้วย https://'; return; }
+
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก...'; err.textContent = '';
+  try {
+    const passwordRes = await fetch(SB + '/auth/v1/user', {
+      method:'PUT', headers:H, body:JSON.stringify({ password })
+    });
+    const updatedUser = await passwordRes.json();
+    if (!passwordRes.ok) throw new Error(updatedUser?.msg || updatedUser?.message || 'ตั้งรหัสผ่านไม่สำเร็จ');
+
+    if (logoUrl && G.user?.role === 'admin') {
+      const logoRes = await fetch(
+        SB + '/rest/v1/exam_schools?id=eq.' + encodeURIComponent(G.user.school_id),
+        { method:'PATCH', headers:{...H, Prefer:'return=minimal'}, body:JSON.stringify({logo_url:logoUrl}) }
+      );
+      if (!logoRes.ok) throw new Error('ตั้งรหัสผ่านแล้ว แต่บันทึกโลโก้ไม่สำเร็จ');
+      G.user.school_logo_url = logoUrl;
+    }
+    history.replaceState(null, '', location.pathname + location.search);
+    showApp();
+  } catch(e) {
+    err.textContent = '⚠️ ' + (e.message || 'บันทึกไม่สำเร็จ');
+  } finally {
+    btn.disabled = false; btn.textContent = 'บันทึกและเข้าใช้งาน';
+  }
+}
+
+async function callInviteFunction(payload) {
+  const res = await fetch(SB + '/functions/v1/invite-user', {
+    method:'POST', headers:H, body:JSON.stringify(payload)
+  });
+  let data = {};
+  try { data = await res.json(); } catch(e) {}
+  if (!res.ok) throw new Error(data.error || 'ดำเนินการไม่สำเร็จ');
+  return data;
+}
+
+function setManageMessage(id, message, ok=false) {
+  const el = document.getElementById(id);
+  el.style.display = message ? 'block' : 'none';
+  el.style.color = ok ? '#087443' : '#b42318';
+  el.style.background = ok ? '#eaf8f1' : '#fff0ee';
+  el.style.borderColor = ok ? '#b9e8d1' : '#f4c7c3';
+  el.textContent = message;
+}
+
+async function createSchoolInvite() {
+  const schoolName = document.getElementById('school-name').value.trim();
+  const schoolCode = document.getElementById('school-code').value.trim().toUpperCase();
+  const fullName = document.getElementById('school-admin-name').value.trim();
+  const email = document.getElementById('school-admin-email').value.trim().toLowerCase();
+  const btn = document.getElementById('school-create-btn');
+  if (!schoolName || !/^[A-Z0-9_-]{2,20}$/.test(schoolCode) || !fullName || !/^\S+@\S+\.\S+$/.test(email)) {
+    setManageMessage('school-msg', 'กรุณากรอกข้อมูลให้ครบ และใช้รหัสย่อภาษาอังกฤษ/ตัวเลข 2–20 ตัว'); return;
+  }
+  btn.disabled = true; btn.textContent = 'กำลังสร้างและส่ง...'; setManageMessage('school-msg','');
+  try {
+    await callInviteFunction({action:'create_school', school_name:schoolName, school_code:schoolCode, full_name:fullName, email});
+    ['school-name','school-code','school-admin-name','school-admin-email'].forEach(id => document.getElementById(id).value='');
+    setManageMessage('school-msg', 'ส่งคำเชิญไปที่ ' + email + ' แล้ว', true);
+    loadSchools();
+  } catch(e) { setManageMessage('school-msg', '⚠️ ' + e.message); }
+  finally { btn.disabled=false; btn.textContent='สร้างโรงเรียนและส่งคำเชิญ'; }
+}
+
+async function inviteTeacher() {
+  const fullName = document.getElementById('teacher-name').value.trim();
+  const email = document.getElementById('teacher-email').value.trim().toLowerCase();
+  const btn = document.getElementById('teacher-invite-btn');
+  if (!fullName || !/^\S+@\S+\.\S+$/.test(email)) { setManageMessage('teacher-msg','กรุณากรอกชื่อและอีเมลให้ถูกต้อง'); return; }
+  btn.disabled=true; btn.textContent='กำลังส่ง...'; setManageMessage('teacher-msg','');
+  try {
+    await callInviteFunction({action:'invite_teacher', full_name:fullName, email});
+    document.getElementById('teacher-name').value=''; document.getElementById('teacher-email').value='';
+    setManageMessage('teacher-msg','ส่งคำเชิญไปที่ ' + email + ' แล้ว',true);
+    loadTeachers();
+  } catch(e) { setManageMessage('teacher-msg','⚠️ ' + e.message); }
+  finally { btn.disabled=false; btn.textContent='ส่งคำเชิญ'; }
+}
+
+function renderManageList(targetId, rows, mapper) {
+  const list = document.getElementById(targetId);
+  list.innerHTML = '';
+  if (!rows.length) { const empty=document.createElement('div'); empty.className='form-help'; empty.textContent='ยังไม่มีข้อมูล'; list.appendChild(empty); return; }
+  rows.forEach(row => {
+    const data = mapper(row);
+    const item=document.createElement('div'); item.className='manage-item';
+    const main=document.createElement('div'); main.className='manage-item-main';
+    const name=document.createElement('div'); name.className='manage-item-name'; name.textContent=data.name;
+    const meta=document.createElement('div'); meta.className='manage-item-meta'; meta.textContent=data.meta;
+    const badge=document.createElement('span'); badge.className='role-badge'; badge.textContent=data.badge;
+    main.append(name,meta); item.append(main,badge); list.appendChild(item);
+  });
+}
+
+async function loadSchools() {
+  if (G.user?.role !== 'platform_admin' && G.user?.is_platform_admin !== true) return;
+  const list=document.getElementById('school-list'); list.textContent='กำลังโหลด...';
+  try {
+    const res=await fetch(SB + '/rest/v1/exam_schools?select=id,name,code,active&order=created_at.desc',{headers:H});
+    if(!res.ok) throw new Error('โหลดโรงเรียนไม่สำเร็จ');
+    const rows=await res.json();
+    renderManageList('school-list',rows,r=>({name:r.name,meta:'รหัส '+r.code,badge:r.active?'ใช้งาน':'ระงับ'}));
+  } catch(e) { list.textContent=e.message; }
+}
+
+async function loadTeachers() {
+  if (G.user?.role !== 'admin') return;
+  const list=document.getElementById('teacher-list'); list.textContent='กำลังโหลด...';
+  try {
+    const res=await fetch(SB + '/rest/v1/exam_profiles?select=user_id,full_name,email,role,active&order=created_at.asc',{headers:H});
+    if(!res.ok) throw new Error('โหลดผู้ใช้งานไม่สำเร็จ');
+    const rows=await res.json();
+    renderManageList('teacher-list',rows,r=>({name:r.full_name,meta:r.email,badge:r.active?(r.role==='admin'?'ผู้ดูแล':'ครู'):'ระงับ'}));
+  } catch(e) { list.textContent=e.message; }
 }
 
 // ============ ANSWER KEY — tap-to-select ============
@@ -1181,7 +1501,7 @@ function onSelectSubject() {
   document.getElementById('f-choices').value = String(choiceCount(s.choices));
   document.getElementById('f-score').value   = 1;
   document.getElementById('f-exam').value    = s.exam_title||'';
-  document.getElementById('f-school').value  = s.school_name||'';
+  document.getElementById('f-school').value  = s.school_name||G.user?.school_name||'';
   buildKeyGrid(); setAnswerKey(s.answer_key||{}); setQuestionScores(s.question_scores||{});
   document.getElementById('del-btn').style.display=''; subjectMsg('',false);
 }
@@ -1191,7 +1511,7 @@ function newSubject() {
   document.getElementById('f-numq').value=20;
   document.getElementById('f-choices').value='4';
   document.getElementById('f-score').value=1;
-  document.getElementById('f-school').value='';
+  document.getElementById('f-school').value=G.user?.school_name||'';
   document.getElementById('subject-select').value='';
   buildKeyGrid(); clearKey(); setQuestionScores({});
   document.getElementById('del-btn').style.display='none'; subjectMsg('',false);
@@ -1200,6 +1520,7 @@ async function saveSubject() {
   const name=document.getElementById('f-subject').value.trim();
   if(!name){ subjectMsg('กรุณากรอกชื่อรายวิชา',true); return; }
   const payload={
+    school_id:G.user.school_id,
     subject_name:name,
     class_level:document.getElementById('f-class').value.trim()||null,
     room:document.getElementById('f-room').value.trim()||null,
@@ -1366,7 +1687,7 @@ function initPrintTab() {
   const s=G.current;
   document.getElementById('print-need').style.display=s?'none':'block';
   if(s){
-    document.getElementById('p-school').value =s.school_name||'';
+    document.getElementById('p-school').value =s.school_name||G.user?.school_name||'';
     document.getElementById('p-exam').value   =s.exam_title||'';
     document.getElementById('p-subject').value=s.subject_name||'';
     document.getElementById('p-class').value  =(s.class_level||'')+(s.room?'/'+s.room:'');
@@ -1968,6 +2289,7 @@ async function saveResult(){
   const btn=document.getElementById('save-result-btn');
   btn.disabled=true; btn.textContent='กำลังบันทึก...';
   const payload={
+    school_id:G.user.school_id,
     subject_id:G.gradeSubject.id,
     student_name:document.getElementById('g-name').value.trim()||null,
     student_no:document.getElementById('g-no').value.trim()||null,
@@ -2137,10 +2459,15 @@ function closeCamera() {
 }
 
 // ============ INIT ============
-(function init(){
-  const saved=sessionStorage.getItem('exam_user');
-  if(saved){ try{ G.user=JSON.parse(saved); showApp(); return; }catch(e){} }
-  document.getElementById('login-screen').style.display='flex';
+(async function init(){
+  try {
+    if (await handleInviteLink()) return;
+  } catch(e) {
+    clearAuthSession();
+    history.replaceState(null, '', location.pathname + location.search);
+    document.getElementById('login-err').textContent = '⚠️ ' + (e.message || 'เปิดลิงก์เชิญไม่สำเร็จ');
+  }
+  if (!(await restoreAuthSession())) document.getElementById('login-screen').style.display='flex';
 })();
 </script>
 </body>

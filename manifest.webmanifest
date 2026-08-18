@@ -1,7 +1,7 @@
 {
   "name": "ระบบตรวจข้อสอบอัตโนมัติ",
   "short_name": "ตรวจข้อสอบ",
-  "description": "ระบบตรวจข้อสอบปรนัย OMR โรงเรียนนายางกลักพิทยาคม",
+  "description": "ระบบตรวจข้อสอบปรนัย OMR สำหรับหลายโรงเรียน",
   "id": "/exam-grader/",
   "start_url": "/exam-grader/exam_grader.html?v=dragfix",
   "scope": "/exam-grader/",

@@ -1,10 +1,9 @@
-# ระบบตรวจข้อสอบอัตโนมัติ — โรงเรียนนายางกลักพิทยาคม
+# ScanScore — ระบบตรวจข้อสอบอัตโนมัติสำหรับหลายโรงเรียน
 
 ## ข้อมูลโปรเจกต์
 - **ชื่อระบบ:** ระบบตรวจข้อสอบปรนัยอัตโนมัติ (Auto Exam Grader)
-- **โรงเรียน:** โรงเรียนนายางกลักพิทยาคม (สพม.ชัยภูมิ)
-- **เจ้าของระบบ:** นายอดิศักดิ์ วนาใส (ครูที่ปรึกษา ม.5/1)
-- **แยกอิสระ** จากระบบดูแลช่วยเหลือนักเรียน (`Downloads/CLAUDE.md`) — คนละโปรเจกต์ คนละโฟลเดอร์
+- **รูปแบบ:** ระบบกลางสำหรับหลายโรงเรียน โดยแยกข้อมูลด้วย `school_id` และ RLS
+- **แยกอิสระ** จากระบบดูแลช่วยเหลือนักเรียน ทั้งโค้ดและ Supabase
 - **เป้าหมาย:** ครูพิมพ์กระดาษคำตอบ OMR → นักเรียนระบายตอบ → ครูถ่ายรูป → เบราว์เซอร์อ่านวงที่ระบายเอง (OMR) → ตรวจเทียบเฉลย → ออกคะแนนทันที
 
 ## แนวคิดหลัก (Concept)
@@ -15,16 +14,18 @@
 
 ## Stack / เทคโนโลยี
 - **Frontend:** HTML + CSS + Vanilla JavaScript (ไฟล์เดียว ไม่ใช้ Framework ไม่ใช้ library ภายนอก)
-- **Database:** Supabase (PostgreSQL) — **โปรเจกต์เดียวกับระบบดูแลนักเรียน** `nayangklak-school` (ref `ujajukwmxulayxxxxmpr`) ใช้ร่วมกัน แต่แยกตาราง `exam_*`
+- **Database:** Supabase (PostgreSQL) — โปรเจกต์เฉพาะ `exam-grader`
+- **Authentication:** Supabase Auth (อีเมล + รหัสผ่าน)
 - **OMR engine:** เขียนเอง vanilla JS (grayscale → Otsu → connected components หา marker → homography ปรับเพอร์สเปกทีฟ → วัดความเข้มแต่ละวง)
 - **Font:** Sarabun (Google Fonts)
 - **Theme:** Navy + Gold (พื้นหลังฟ้าอ่อน)
 
-## Supabase (ใช้ร่วมกับระบบดูแลนักเรียน)
+## Supabase
 ```
-URL: https://ujajukwmxulayxxxxmpr.supabase.co  (= โปรเจกต์ nayangklak-school)
-ANON KEY: อยู่ใน exam_grader.html (ตัวเดียวกับระบบดูแลนักเรียน)
-RLS: ปิด + grant anon + permissive policy (ตาราง exam_*)
+Project: exam-grader
+Region: Southeast Asia (Singapore)
+Project URL และ publishable key: อยู่ใน exam_grader.html
+RLS: เปิดทุกตาราง และบังคับแยกข้อมูลตาม school_id
 ```
 
 ## โครงสร้างไฟล์
@@ -32,8 +33,8 @@ RLS: ปิด + grant anon + permissive policy (ตาราง exam_*)
 ตรวจข้อสอบ/
 ├── exam_grader.html                    ← เว็บหลัก 3 แท็บ + OMR engine (CSS + JS ในไฟล์เดียว)
 ├── exam_schema.sql                     ← SQL สร้างตาราง (รันใน Supabase SQL Editor แล้ว)
-├── supabase/functions/grade-exam/
-│   └── index.ts                        ← Edge Function proxy (Claude) — ❌ ไม่ใช้แล้ว เก็บไว้เผื่ออนาคต
+├── supabase/functions/invite-user/
+│   └── index.ts                        ← เชิญผู้ดูแลโรงเรียน/ครู (ทำงานฝั่งเซิร์ฟเวอร์)
 ├── answer_sheet_60q.pdf                ← กระดาษคำตอบเก่า (เลิกใช้ ใช้ตัวพิมพ์ OMR ในเว็บแทน)
 └── CLAUDE.md                           ← ไฟล์นี้
 ```
@@ -46,14 +47,20 @@ RLS: ปิด + grant anon + permissive policy (ตาราง exam_*)
 ## ตารางฐานข้อมูล (exam_schema.sql)
 | ตาราง | รายละเอียด |
 |-------|-----------|
-| `exam_subjects` | รายวิชา + เฉลย: subject_name, class_level, room, exam_title, school_name, num_questions, answer_key (jsonb), updated_at (auto trigger) |
-| `exam_results` | ผลตรวจรายคน: subject_id, student_name, student_no, room, score, total, percent, answers (jsonb) |
-- RLS ปิดทุกตาราง (ตามแนวทางโปรเจกต์)
+| `exam_schools` | ข้อมูลโรงเรียนและสถานะการใช้งาน |
+| `exam_profiles` | ผูกผู้ใช้ Supabase Auth กับโรงเรียนและบทบาท admin/teacher |
+| `exam_platform_admins` | บัญชีเจ้าของระบบที่สร้างโรงเรียนและเชิญผู้ดูแลคนแรก |
+| `exam_subjects` | รายวิชา เฉลย คะแนนรายข้อ และ `school_id` |
+| `exam_results` | ผลตรวจรายคน ผู้ตรวจ และ `school_id` |
+- RLS เปิดทุกตาราง ผู้ใช้ที่ยืนยันตัวตนแล้วเห็นเฉพาะข้อมูลโรงเรียนของตน
 
-## โครงสร้าง exam_grader.html (3 แท็บ)
+## โครงสร้าง exam_grader.html (3 แท็บใช้งาน + 2 แท็บจัดการตามสิทธิ์)
 - **แท็บ 1 — รายวิชา & เฉลย:** dropdown เลือกรายวิชาที่บันทึกไว้ / ฟอร์มชื่อวิชา-ชั้น-ห้อง-จำนวนข้อ-ชื่อข้อสอบ-โรงเรียน / ตารางกรอกเฉลย ก-ง / บันทึก-ลบ (CRUD ลง Supabase)
 - **แท็บ 2 — พิมพ์กระดาษคำตอบ:** ปรับหัวกระดาษ → ตัวอย่างสด (render เป็น **SVG**) → `window.print()` (มี `@media print` ซ่อน UI เหลือแต่ `#print-area`) มี **จุดดำ 4 มุม (registration markers)** + ช่องกรอก ชื่อ/เลขที่/ห้อง + วงกลมเปล่า (ตัวอักษร ก-ง อยู่ซ้ายวง วงข้างในเปล่าเพื่อให้ OMR อ่านง่าย)
 - **แท็บ 3 — ตรวจข้อสอบ:** เลือกรายวิชา / กรอกชื่อ-เลขที่-ห้อง / อัปโหลดรูป → ปุ่มตรวจ (**รัน OMR ใน client**) → คะแนน + ตารางรายข้อ **(dropdown แก้คำตอบได้ คำนวณคะแนนสด)** + ปุ่มบันทึกลง `exam_results`
+- **ผู้ดูแลโรงเรียน — จัดการครู:** กรอกชื่อและอีเมล → ส่งลิงก์เชิญให้ครูตั้งรหัสผ่านเอง
+- **เจ้าของระบบ — จัดการโรงเรียน:** สร้างโรงเรียน รหัสย่อ และเชิญผู้ดูแลคนแรก
+- **ลิงก์เชิญ:** ผู้รับตรวจสอบชื่อ/โรงเรียน ตั้งรหัสผ่าน และเพิ่มลิงก์โลโก้ได้เมื่อเป็นผู้ดูแลโรงเรียน
 
 ### ฟังก์ชันสำคัญ (JS)
 | ฟังก์ชัน | หน้าที่ |
@@ -91,7 +98,9 @@ RLS: ปิด + grant anon + permissive policy (ตาราง exam_*)
 - ผลจาก OMR แก้ไขได้ในตาราง → คะแนนคิดจากค่าใน dropdown (ไม่ใช่ค่าดิบจาก OMR) ผ่าน `recomputeScore()`
 
 ## ✅ สถานะใช้งานจริง
-- ฐานข้อมูลใช้ได้แล้ว (รัน SQL + ปิด RLS + grant + policy เรียบร้อย)
+- ฐานข้อมูลหลายโรงเรียนติดตั้งแล้ว พร้อม Supabase Auth และ RLS
+- Edge Function `invite-user` ติดตั้งแล้ว และเก็บ secret key ไว้เฉพาะฝั่ง Supabase
+- Auth redirect กลับ GitHub Pages ตั้งค่าแล้ว
 - ตรวจด้วย OMR ทำงานได้ **ทันที ไม่ต้อง deploy/ตั้งค่าอะไรเพิ่ม** (ไม่พึ่ง server/AI)
 
 ## สิ่งที่ยังไม่มี (Roadmap)
@@ -102,7 +111,7 @@ RLS: ปิด + grant anon + permissive policy (ตาราง exam_*)
 - [ ] ตรวจหลายแผ่น/หลายคนต่อเนื่อง (batch)
 - [ ] หน้าดูคะแนนย้อนหลัง / สรุปรายห้อง / export
 - [ ] ออกรายงาน PDF ภาษาไทย (html2canvas)
-- [ ] เชื่อมนักเรียนจากตาราง `students` ของระบบดูแลนักเรียน (เลือกชื่อแทนพิมพ์)
+- [ ] เพิ่มรายชื่อนักเรียนแยกตามโรงเรียนในโปรเจกต์ `exam-grader`
 - [ ] (ถ้าอยากแม่นขึ้นกับลายมือ/เงา) ปรับ threshold หรือเพิ่ม adaptive threshold
 
 ## กฎการแก้ไขโค้ด (สำคัญ)
