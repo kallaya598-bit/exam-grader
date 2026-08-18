@@ -52,7 +52,7 @@ export default {
     }
 
     if (action === 'create_school') {
-      const { data: platformAdmin } = await admin
+      const { data: platformAdmin } = await ctx.supabase
         .from('exam_platform_admins').select('user_id').eq('user_id', callerId).maybeSingle()
       if (!platformAdmin) return reply(req, 403, { error: 'เฉพาะผู้ดูแลระบบเท่านั้น' })
 
@@ -93,7 +93,9 @@ export default {
     }
 
     if (action === 'invite_teacher') {
-      const { data: profile } = await admin.from('exam_profiles')
+      // Use the caller-scoped client for authorization. RLS is the source of
+      // truth for which school and role this signed-in user may access.
+      const { data: profile } = await ctx.supabase.from('exam_profiles')
         .select('school_id,role,active').eq('user_id', callerId).maybeSingle()
       if (!profile?.active || profile.role !== 'admin') {
         return reply(req, 403, { error: 'เฉพาะผู้ดูแลโรงเรียนเท่านั้น' })
