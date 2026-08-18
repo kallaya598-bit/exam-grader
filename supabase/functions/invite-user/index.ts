@@ -52,9 +52,10 @@ export default {
     }
 
     if (action === 'create_school') {
-      const { data: platformAdmin } = await ctx.supabase
-        .from('exam_platform_admins').select('user_id').eq('user_id', callerId).maybeSingle()
-      if (!platformAdmin) return reply(req, 403, { error: 'เฉพาะผู้ดูแลระบบเท่านั้น' })
+      const { data: isPlatformAdmin, error: platformRoleError } = await ctx.supabase
+        .rpc('exam_is_platform_admin')
+      if (platformRoleError) return reply(req, 500, { error: 'ตรวจสอบสิทธิ์ผู้ดูแลระบบไม่สำเร็จ' })
+      if (!isPlatformAdmin) return reply(req, 403, { error: 'เฉพาะผู้ดูแลระบบเท่านั้น' })
 
       const schoolName = cleanText(input.school_name, 200)
       const schoolCode = cleanText(input.school_code, 20).toUpperCase()
@@ -93,16 +94,22 @@ export default {
     }
 
     if (action === 'invite_teacher') {
-      // Use the caller-scoped client for authorization. RLS is the source of
-      // truth for which school and role this signed-in user may access.
-      const { data: profile } = await ctx.supabase.from('exam_profiles')
-        .select('school_id,role,active').eq('user_id', callerId).maybeSingle()
-      if (!profile?.active || profile.role !== 'admin') {
+      // Ask the same database helpers used by RLS. This avoids duplicating
+      // role and tenant resolution in the Edge Function.
+      const [roleResult, schoolResult] = await Promise.all([
+        ctx.supabase.rpc('exam_is_school_admin'),
+        ctx.supabase.rpc('exam_current_school_id'),
+      ])
+      if (roleResult.error || schoolResult.error) {
+        return reply(req, 500, { error: 'ตรวจสอบสิทธิ์โรงเรียนไม่สำเร็จ' })
+      }
+      if (!roleResult.data || !schoolResult.data) {
         return reply(req, 403, { error: 'เฉพาะผู้ดูแลโรงเรียนเท่านั้น' })
       }
+      const schoolId = String(schoolResult.data)
 
       const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-        data: { full_name: fullName, school_id: profile.school_id, role: 'teacher' },
+        data: { full_name: fullName, school_id: schoolId, role: 'teacher' },
         redirectTo: APP_URL,
       })
       if (inviteError || !invited.user) {
@@ -110,7 +117,7 @@ export default {
       }
 
       const { error: profileError } = await admin.from('exam_profiles').insert({
-        user_id: invited.user.id, school_id: profile.school_id, email,
+        user_id: invited.user.id, school_id: schoolId, email,
         full_name: fullName, role: 'teacher',
       })
       if (profileError) {
